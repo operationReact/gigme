@@ -1,0 +1,22 @@
+name: app_frontend
+description: Flutter UI for Gigmework
+publish_to: 'none'
+version: 0.1.0+1
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  # dio: ^5.4.0  # Uncomment if you prefer dio
+  # flutter_dotenv: ^5.1.0 # Optional alternative env handling
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+

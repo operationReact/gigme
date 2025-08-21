@@ -1,0 +1,14 @@
+# Root ignores
+.gradle/
+build/
+.out/
+.idea/
+*.iml
+.DS_Store
+# Flutter / Dart artifacts (frontend submodule may also have its own)
+.dart_tool/
+.packages
+pubspec.lock
+# Logs
+*.log
+

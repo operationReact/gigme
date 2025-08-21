@@ -1,0 +1,9 @@
+rootProject.name = 'gigmework'
+
+// Include both frontend (Flutter) and backend (Spring Boot) modules.
+include ':app-frontend'
+include ':app-backend'
+
+// Prevent accidental configuration on demand issues.
+
+

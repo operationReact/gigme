@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Spring Boot Backend" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="app-backend" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.gigmework.GigmeworkApplication" />
+    <option name="ACTIVE_PROFILES" value="dev" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
+

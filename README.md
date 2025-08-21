@@ -1,84 +1,61 @@
-# GigMe Monorepo
+# Gigmework Multi-Module Workspace
 
-GigMe is a simple freelancing marketplace where clients can post gigs and freelancers can browse them.  This repository contains both the Flutter frontend and the Spring Boot backend so that you can work on the entire stack from a single code base.  The goal of the skeleton is to give you a working starting point that runs locally on web, Android, iOS and desktop.
+root/
+├── app-frontend/  (Flutter UI)
+└── app-backend/   (Spring Boot API)
 
-## Structure
-
+## Backend (Spring Boot)
+Run (dev, in‑memory H2):
 ```
-gigme/
-├── backend/    # Java 21 + Spring Boot API service
-│   ├── build.gradle       # Gradle build file
-│   ├── settings.gradle    # Project settings
-│   └── src/
-│       ├── main/java/com/gigme/app/    # Application code
-│       │   ├── GigmeApplication.java   # Application entry point
-│       │   ├── model/                  # Entities
-│       │   ├── repository/             # Spring Data repositories
-│       │   └── controller/             # REST controllers
-│       └── main/resources/
-│           └── application.yml         # Spring configuration (H2/PostgreSQL)
-└── frontend/ # Flutter application
-    ├── lib/
-    │   └── main.dart     # Flutter entry point
-    └── pubspec.yaml      # Flutter dependencies and configuration
+./gradlew :app-backend:bootRun
 ```
+Main class: `com.gigmework.GigmeworkApplication`
+API base path example: `http://localhost:8080/api/jobs`
 
-## Running the backend
+Profiles:
+- dev (default, H2 in‑memory)
+- prod (PostgreSQL – configure URL/credentials in application.yml or env vars)
 
-1. Make sure you have **Java 21** and **Gradle** installed.
-2. Navigate into the `backend` directory:
-
-   ```bash
-   cd backend
-   ```
-
-3. Start the API service using the Spring Boot Gradle plugin:
-
-   ```bash
-   ./gradlew bootRun
-   ```
-
-By default the backend runs against an in‑memory H2 database using the `h2` profile.  To use PostgreSQL instead, set the `SPRING_PROFILES_ACTIVE` environment variable:
-
-```bash
-SPRING_PROFILES_ACTIVE=postgres ./gradlew bootRun
+## Frontend (Flutter)
+From `app-frontend/`:
 ```
+flutter pub get
+flutter run    # Select device (Android emulator, Chrome, etc.)
+```
+Environment base URL logic:
+- Android emulator: `http://10.0.2.2:8080`
+- Web / desktop / iOS simulator: `http://localhost:8080`
+- Real device (LAN): replace with your host machine IP, e.g. `http://192.168.x.x:8080`
 
-The API will be available on `http://localhost:8080`.  Useful endpoints include:
+Adjust by editing `lib/env.dart`.
 
-* `POST /api/users/register` – register a user (body: JSON with `username`, `email` and `role`)
-* `GET  /api/users` – list users
-* `POST /api/gigs` – create a gig (body: JSON with `title`, `description`, `budget`, and optional `client.id`)
-* `GET  /api/gigs` – list gigs
+## Endpoints
+`GET /api/jobs` – list jobs
+`POST /api/jobs` – create job `{ "title": "...", "description": "..." }`
 
-## Running the frontend
+## CORS
+Configured in `CorsConfig` to allow all origins for `/api/**` (dev convenience). Tighten for production.
 
-1. Install the [Flutter SDK](https://flutter.dev/docs/get-started/install) if you haven’t already.  Flutter automatically supports web, Android and iOS from a single code base.
-2. Navigate into the `frontend` directory:
-
-   ```bash
-   cd frontend
-   ```
-
-3. Fetch dependencies and run the app on the target platform:
-
-   ```bash
-   flutter pub get
-   
-   # To run on the web (opens in the browser)
-   flutter run -d chrome
-   
-   # To run on an Android device or emulator
-   flutter run -d android
-   
-   # To run on an iOS device or simulator (requires macOS)
-   flutter run -d ios
-   ```
-
-The Flutter app will connect to the backend at `http://localhost:8080` by default.  If you run the backend on a different host or port you can adjust the base URL in `lib/main.dart`.
+## Run Configurations (Android Studio / IntelliJ)
+Two run configs placed under `.run/`:
+- Flutter Frontend -> runs `lib/main.dart`
+- Spring Boot Backend -> runs backend with `dev` profile
 
 ## Notes
+- Modules are isolated. Flutter does not compile backend code.
+- Switch run target by selecting the desired configuration.
+- For prod Postgres: start DB, set `SPRING_PROFILES_ACTIVE=prod`.
 
-* The code is intentionally simple.  It does not implement authentication or advanced business logic.  Feel free to extend it with your own features.
-* The H2 profile uses an in‑memory database so all data is lost when the application stops.  Use the PostgreSQL profile (`postgres`) for persistence.
-* This repository uses a monorepo structure so that both the server and client live in the same Git repository.  You can open two terminal windows, one for the backend and one for the frontend, and develop both simultaneously.
+## Sample curl
+```
+curl -X POST http://localhost:8080/api/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Test Job","description":"Demo"}'
+```
+
+## Next Steps (Optional)
+- Add persistence entities & repositories
+- Introduce DTO validation annotations
+- Add dio client & error handling layer in Flutter
+- Docker-compose for Postgres
+

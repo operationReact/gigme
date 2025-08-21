@@ -1,0 +1,4 @@
+// Root build.gradle intentionally minimal.
+// Flutter frontend managed by Flutter toolchain; backend module declares its own plugins.
+// (Removed plugin declarations to avoid core plugin apply false error.)
+
