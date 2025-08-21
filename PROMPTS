@@ -1,0 +1,51 @@
+PUSH 1
+
+
+Current implemented UI features (end‑to‑end):
+Landing / Entry Experience
+Cinematic full‑screen looping background video with dark tint + rotating subtle gradient overlay.
+Animated particle (soft blobs) canvas for depth.
+Frosted glass (blur) central panel with translucent border & elevation.
+Responsive layout: two fixed‑dimension (360x120) action cards side‑by‑side on wide screens, stacked on narrow (Android phones).
+Action cards: gradient backgrounds, hover (web) + press scale animation, hero tags for potential transitions, clamped title/subtitle text.
+Headline + subheadline (“GigMeWork” / “People Need People”) centered and adaptive.
+Visual & Theming
+Material 3 with custom seed‑derived color scheme (teal + violet accents, slate primary).
+Consistent card / chip / button theming (rounded shapes, subtle borders).
+Light theme surface palette with strong contrast in overlay contexts.
+Global responsive typography via theme.
+Navigation & Flow
+Distinct routes for:
+Freelancer sign‑in, client sign‑in
+Freelancer/client registration & profile pages
+Freelancer home screen
+Route table wired in main.dart; landing is home.
+Hero tags reserved on action cards (ready for animated transitions to role-specific pages).
+Interaction & Animation
+Intro fade + slide animation for panel on first load.
+Continuous background animation loop.
+AnimatedScale on hover/press for cards (web + desktop) with graceful behavior on mobile (tap only).
+Job / Domain Functionality (earlier implementation)
+Job list screen (CRUD create + list + refresh) using JobService hitting backend REST API (HTTP).
+Environment-aware base URL (localhost vs 10.0.2.2) via env.dart.
+Auth & Profile (earlier prototype layer)
+In‑memory AuthService (user type, simple login state, profile creation flags).
+Separate freelancer/client profile creation screens with validation (display name, skills, etc.).
+Conditional redirect after login to profile creation if first-time.
+Media Utilities
+BackgroundVideoSingle widget with graceful loading + darken overlay.
+(Legacy) Mosaic multi‑video background implementation (home_choice.dart) still present but now superseded by single cinematic video.
+Responsiveness & Platform Parity
+Same Dart codebase powering web and Android (no forked UI logic).
+LayoutBuilder logic determines card arrangement and widths adaptively.
+Hover effects automatically no‑op on touch devices.
+Android Integration
+INTERNET permission added (network video + API).
+Immersive transparent app bar over video on landing.
+Code Organization / Theming Infrastructure
+Centralized color scheme & component theming (buttons, chips, cards).
+Reusable action card & badge avatar widgets.
+Particle painter custom painter for lightweight background motion.
+Not Yet Cleaned / Legacy (can remove if unneeded)
+Older home_choice.dart + earlier gradient/card concept still in repo.
+Earlier auth/profile screens may overlap with new flows if both paths are kept.
