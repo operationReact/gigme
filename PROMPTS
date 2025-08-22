@@ -197,4 +197,178 @@ Damped easing uses exponential smoothing each frame (controller repeats every 16
 Perspective via setEntry(3,2,0.0016) plus rotateX/rotateY based on normalized pointer.
 Gradient sweep uses CustomPaint with BlendMode.plus for a luminous pass.
 Cleanup handled: controller disposed in dispose().
-No analyzer errors detected in main.dart after changes.
+No analyzer errors detected in main.dart after change
+
+===================================================================================
+
+STABLE 4:  CHANGE:
+
+mplemented full forgot/reset password flow.
+Backend:
+Added ResetPasswordToken entity, repository, service.
+Extended UserAccount with setPassword.
+Added /api/auth/forgot-password and /api/auth/reset-password endpoints in AuthController.
+Tokens valid 30 minutes, marked used after reset. (Plain text passwords still per existing demo; recommend hashing later.)
+Frontend:
+AuthApi: forgotPassword(email) returns demo token (if backend includes) and resetPassword(token,newPassword).
+Added dialogs (forgot + reset) to both freelancer (sign_in_user.dart) and client (sign_in_client.dart) sign-in screens.
+Dialogs are stateful, validate input, show demo token (for development), allow immediate reset.
+Fixed prior setState syntax issues.
+Validation:
+Dart analysis: no errors in modified frontend files.
+Couldn’t run backend build due to environment terminal limitation in this session; code changes are straightforward (pure Spring Data/JPA) and should compile. If any issue arises, run: ./gradlew :app-backend:build from the backend folder.
+Next recommended hardening (optional):
+Hash passwords (BCrypt via spring-boot-starter-security or spring-security-crypto).
+Email delivery (e.g., Spring Mail) instead of returning token in response.
+Rate limiting forgot endpoint to mitigate enumeration/brute-force.
+Add purge job for expired tokens.
+Disable token re-use explicitly (already prevented by markUsed()).
+Add integration tests for reset success / invalid / expired / reused token.
+
+
+
+mplemented:
+Backend: Added spring-boot-starter-mail, MailService, modified AuthController to email (or log) reset token instead of returning it.
+Frontend: Updated AuthApi.forgotPassword to return void; removed token display. Added robust forgot/reset dialogs for both freelancer and client sign-in screens. Added password strength meter (progress bar + label) and enforced minimum (Medium / >=0.5) before enabling Reset. Unified messaging.
+Next steps (optional hardening):
+Password hashing (BCrypt) and migrate existing plain passwords.
+Rate limit forgot-password endpoint and add CAPTCHA.
+Add server-side password strength validation mirroring client logic.
+Provide dedicated reset password web page matching emailed deep link (?token=...).
+Internationalization (if re-enabled later).
+Add unit/integration tests for reset flow
+
+
+
+mplemented a dedicated rich Forgot Password page (multi‑step with email request, sent confirmation, token + password reset with strength meter and checklist, success screen) and added its route. Also refactored client dialogs to eliminate the earlier parenthesis errors; replaced them with clearer content-building logic.
+Next steps if you want to fully adopt the new page:
+Replace inline “Forgot password?” dialog triggers in sign_in_user.dart and sign_in_client.dart with navigation to ForgotPasswordPage (currently still using dialog in those screens). Want me to switch those to Navigator.pushNamed(ForgotPasswordPage.routeName)?
+Add a deep link button in the email (backend) pointing to /#/forgot-password?token=... for web.
+Optional: add server‐side strength validation, rate limiting, and password hashing.
+
+
+
+
+eplaced the inline dialogs in both sign_in_user.dart and sign_in_client.dart with navigation to the new rich ForgotPasswordPage (route /forgot-password). Added the route to main.dart. No syntax errors reported on the edited files.
+Remaining (from your earlier list):
+Deep link in reset email: currently the backend MailService logs a link but doesn’t build a hash-style Flutter web route. We can adjust it to append /#/forgot-password?token=...&email=... if you’d like.
+Server-side strength validation, rate limiting, password hashing: still pending.
+Let me know which of these you want next:
+Update MailService link format for deep linking.
+Add BCrypt hashing + migration rule.
+Add simple strength validation server-side (reject weak).
+Add naive rate limiting (in-memory counter) for forgot-password.
+
+
+ENTIRE FLOW SUMMARY:
+
+orgot / Reset Password page: multi-step guided flow with security UX.
+Flow stages:
+Request: user enters email (basic @ validation). Submit triggers backend /api/auth/forgot-password.
+Sent: confirmation screen shows neutral message (“If an account exists...”) to avoid enumeration. Options: I have a token (jump ahead), Resend (same email), Back.
+Reset: form for token + new password with live strength meter (scored over length, lower, upper, digit, symbol), color-coded bar, textual label, animated checklist chips. Submit disabled if form invalid or strength < Medium (>=0.5 threshold).
+Success: confirmation + CTA back to sign in.
+Frontend features:
+Deep-link support: /#/forgot-password?token=...&email=... pre-fills and jumps to reset stage.
+Local animated background + glass/blur container, animated stage transitions.
+Loading states with spinners on buttons; prevents duplicate submits.
+Error capture and inline display.
+Resend capability.
+Start over / back navigation.
+Password requirement visualization (animated chips).
+Token & password kept in memory only; no token echo from server.
+Backend features:
+Endpoints: POST /api/auth/forgot-password (issues email with token link), POST /api/auth/reset-password (validates token + updates password).
+Rate limiting: in-memory per email/key (default 5 requests / 15 min) via RateLimiterService.
+Neutral response messaging to mitigate user enumeration.
+Email generation includes secure token and includes token & email as URL params for web autofill.
+Security / UX safeguards:
+Enumeration resistant copy.
+Rate limiting forgot requests.
+Password strength enforcement (must reach Medium).
+Token required explicitly; not auto-submitted.
+Form validation (email format, token non-empty, password length >=6 + strength requirement).
+Tech details:
+Strength scoring: 5 criteria -> normalized 0..1.
+Animated UI (AnimationController) and AnimatedSwitcher for stage transitions.
+Current gaps / possible next enhancements (not yet implemented):
+
+
+
+
+
+
+
+
+
+
+FOR SIGN IN PAGES:
+
+
+
+mplemented the requested visual + interaction upgrades across all sign-in pages (freelancer, client, legacy login):
+What's done:
+Branding/header: Added logo-style gradient circular icon + “Gigmework” name and headline (freelancer: “Ready to find your next gig?”, client: “Ready to hire top talent?”).
+Background: New reusable AnimatedSignInBackground with subtle drifting glow particles over existing gradient.
+Card style: Frosted glass (higher blur, semi‑transparent layer, thicker rounding 28–30px, refined border + shadow).
+Inputs: Floating labels, consistent focus ring in brand teal, inline Forgot? link inside password field, animated eye toggle (rotation/scale).
+Primary button: Gradient (teal → blue), hover scale + shadow, loading spinner state, success state (green gradient + check icon) before navigation.
+Error state: Shake animation on auth/validation failures (retained + extended).
+Success transition: Visual success feedback before route change.
+Social login: Added Google / GitHub placeholder buttons (no backend wiring yet; currently debugPrint stubs).
+Spacing/secondary actions: “Create account” and remember me repositioned with improved hierarchy.
+Mobile friendliness: Constrained max widths, generous internal padding, scalable components.
+Shared particle background extracted to widgets/animated_background.dart for reuse.
+Quality:
+Build/error check: No compile errors in updated files (sign_in_user.dart, sign_in_client.dart, login_screen.dart, animated_background.dart).
+Existing logic (session, preferences, navigation) preserved.
+Legacy login_screen modernized for consistency.
+Notes / assumptions:
+Social auth not implemented server-side; placeholders left intentionally.
+Kept existing navigation routes and profile completion branching.
+No asset logo provided; used gradient circle + icon as brand mark.
+Possible next steps (optional):
+Wire real Google/GitHub OAuth flows (e.g., firebase_auth or oauth2 PKCE flow).
+Extract shared sign-in form components to reduce duplication (button, field decorator).
+Add accessibility tweaks (semantic labels for social buttons, larger tap targets on mobile).
+Add password strength meter (logic already present in original code but unused now).
+Add unit/widget tests for button state transitions & shake animation trigger.
+
+
+
+Add password strength meter (logic already present in original code but unused now).
+Extract shared sign-in form components to reduce duplication (button, field decorator).
+Add accessibility tweaks (semantic labels for social buttons, larger tap targets on mobile).
+
+
+
+Extracted shared components (sign_in_components.dart) for primary button, social buttons, input decoration, password strength meter.
+Refactored freelancer, client, and legacy login screens to use shared components; removed duplicated code.
+Added accessible semantics (labels for social buttons, progress meter semantics).
+Added password strength meter (dynamic bar + label) across all sign-in pages.
+Centralized gradient button with loading/success states.
+Ensured inline Forgot link, animated eye toggle still work.
+
+
+
+
+Implemented requested refinements:
+Glass panels:
+Increased blur, added higher-opacity frosted fill (≈0.82), subtle white border (18% opacity), deeper soft shadow/spread.
+Consistent across freelancer, client, legacy login screens.
+Typography & hierarchy:
+Gigmework title now bold (w700) with darker contrast on light panel.
+Taglines updated (freelancer: “Find gigs, grow your career”; client: “Find talent, scale your team”) in medium contrast.
+Inputs use floating labels with higher contrast and persistent visibility.
+Buttons:
+Primary button uses stronger multi‑stop teal→deep blue gradient, hover glow, inner radial edge darkening, success state preserved.
+Links & interactions:
+Replaced text buttons with HoverLink (animated underline) for Forgot? / Create account.
+Added semantic labels for accessibility.
+Layout additions:
+Social login section moved below primary action, separated with “or continue with” divider line.
+Password strength meter retained below password when typing.
+Shared components:
+Centralized styling in sign_in_components.dart (primary button, input decoration, strength meter, social buttons, hover links).
+All updated files compile without errors.
+Let me know if you want dark-mode specific tweaks, reduced motion option, or real OAuth wiring next.

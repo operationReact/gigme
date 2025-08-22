@@ -46,5 +46,5 @@ public class UserAccount {
     public boolean hasClientProfile() { return clientProfile != null; }
     public FreelancerProfile getFreelancerProfile() { return freelancerProfile; }
     public ClientProfile getClientProfile() { return clientProfile; }
+    public void setPassword(String password) { this.password = password; }
 }
-

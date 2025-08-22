@@ -11,6 +11,7 @@ import 'screens/register_client.dart';
 import 'screens/freelancer_home.dart';
 import 'screens/freelancer_profile_screen.dart';
 import 'screens/client_profile_screen.dart';
+import 'screens/forgot_password.dart';
 import 'widgets/background_video_single.dart';
 import 'services/preferences_service.dart';
 
@@ -94,6 +95,7 @@ class _MyAppState extends State<MyApp> {
         FreelancerHomePage.routeName: (_) => const FreelancerHomePage(),
         FreelancerProfileScreen.route: (_) => const FreelancerProfileScreen(),
         ClientProfileScreen.route: (_) => const ClientProfileScreen(),
+        ForgotPasswordPage.routeName: (_) => const ForgotPasswordPage(),
       },
       home: _loaded ? LandingPage(onToggleTheme: _toggleTheme, darkMode: _darkMode) : const SizedBox.shrink(),
     );

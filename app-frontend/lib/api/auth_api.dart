@@ -43,6 +43,21 @@ class AuthApi {
     throw ApiException(_errorMsg(res));
   }
 
+  Future<void> forgotPassword(String email) async {
+    final res = await _client.post('/api/auth/forgot-password', body: {'email': email});
+    if (res.statusCode == 200) return; // always ok if request accepted
+    throw ApiException(_errorMsg(res));
+  }
+
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    final res = await _client.post('/api/auth/reset-password', body: {
+      'token': token,
+      'newPassword': newPassword,
+    });
+    if (res.statusCode == 200) return;
+    throw ApiException(_errorMsg(res));
+  }
+
   String _errorMsg(http.Response r) {
     try {
       final m = jsonDecode(r.body);
@@ -58,4 +73,3 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
-
