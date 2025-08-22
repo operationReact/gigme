@@ -9,6 +9,8 @@ import 'screens/profile_freelancer.dart';
 import 'screens/register_freelancer.dart';
 import 'screens/register_client.dart';
 import 'screens/freelancer_home.dart';
+import 'screens/freelancer_profile_screen.dart';
+import 'screens/client_profile_screen.dart';
 import 'widgets/background_video_single.dart';
 
 void main() {
@@ -93,6 +95,8 @@ class MyApp extends StatelessWidget {
         RegisterFreelancerPage.routeName: (_) => const RegisterFreelancerPage(),
         RegisterClientPage.routeName: (_) => const RegisterClientPage(),
         FreelancerHomePage.routeName: (_) => const FreelancerHomePage(),
+        FreelancerProfileScreen.route: (_) => const FreelancerProfileScreen(),
+        ClientProfileScreen.route: (_) => const ClientProfileScreen(),
       },
       home: const LandingPage(),
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/auth_service.dart';
+import '../api/profile_api.dart';
+import '../services/session_service.dart';
 import '../main.dart';
+import '../screens/freelancer_home.dart';
 
 class FreelancerProfileScreen extends StatefulWidget {
   const FreelancerProfileScreen({super.key});
@@ -18,14 +20,57 @@ class _FreelancerProfileScreenState extends State<FreelancerProfileScreen> {
   final _bio = TextEditingController();
   final _skills = TextEditingController();
   bool _loading = false;
+  bool _initialLoading = true;
+  bool _existing = false;
+
+  @override
+  void initState(){
+    super.initState();
+    _prefill();
+  }
+
+  Future<void> _prefill() async {
+    final user = SessionService.instance.user;
+    if(user==null){ setState(()=> _initialLoading=false); return; }
+    try {
+      final dto = await ProfileApi().getFreelancer(user.id);
+      if(dto!=null){
+        _existing = true;
+        _name.text = dto.displayName;
+        if(dto.professionalTitle!=null) _title.text = dto.professionalTitle!;
+        if(dto.bio!=null) _bio.text = dto.bio!;
+        if(dto.skillsCsv!=null) _skills.text = dto.skillsCsv!;
+      }
+    } catch(_){ /* ignore */ }
+    if(mounted) setState(()=> _initialLoading=false);
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final session = SessionService.instance;
+    final user = session.user;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not authenticated')));
+      return;
+    }
     setState(()=> _loading = true);
-    await Future.delayed(const Duration(milliseconds: 600)); // simulate
-    AuthService.instance.setFreelancerProfile(displayName: _name.text.trim());
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(JobsPage.route, (_) => false);
+    try {
+      final api = ProfileApi();
+      await api.upsertFreelancer(user.id,
+          displayName: _name.text.trim(),
+          professionalTitle: _title.text.trim().isEmpty ? null : _title.text.trim(),
+          bio: _bio.text.trim().isEmpty ? null : _bio.text.trim(),
+          skillsCsv: _skills.text.trim().isEmpty ? null : _skills.text.trim());
+      session.updateProfiles(hasFreelancer: true);
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(FreelancerHomePage.routeName, (_) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(()=> _loading = false);
     }
   }
 
@@ -34,6 +79,7 @@ class _FreelancerProfileScreenState extends State<FreelancerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if(_initialLoading){ return const Scaffold(body: Center(child: CircularProgressIndicator())); }
     return Scaffold(
       appBar: AppBar(title: const Text('Freelancer Profile')),
       backgroundColor: Colors.black.withOpacity(.25),
@@ -81,7 +127,7 @@ class _FreelancerProfileScreenState extends State<FreelancerProfileScreen> {
                             ),
                             child: Center(
                               child: _loading ? const SizedBox(width:22,height:22,child:CircularProgressIndicator(strokeWidth:3,valueColor: AlwaysStoppedAnimation(Colors.white)))
-                                : Text('Finish & Continue', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                                : Text(_existing ? 'Save' : 'Finish & Continue', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                             ),
                           ),
                         ),
@@ -118,4 +164,3 @@ class _FreelancerProfileScreenState extends State<FreelancerProfileScreen> {
     );
   }
 }
-

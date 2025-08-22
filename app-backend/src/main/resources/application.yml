@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8080  # default (prod / unspecified profile)
 
 spring:
   profiles:
@@ -25,6 +25,8 @@ spring:
   h2:
     console:
       enabled: true
+server:
+  port: 8081  # dev profile port override
 
 ---
 spring:
