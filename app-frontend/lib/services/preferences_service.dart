@@ -7,6 +7,7 @@ class PreferencesService {
   static const _kRememberEmail = 'remember_email';
   static const _kEmail = 'saved_email';
   static const _kRole = 'saved_role';
+  static const _kDarkMode = 'dark_mode';
 
   Future<void> saveRemembered({required bool remember, String? email, String? role}) async {
     final p = await SharedPreferences.getInstance();
@@ -27,5 +28,14 @@ class PreferencesService {
     final role = remember ? p.getString(_kRole) : null;
     return (remember, email, role);
   }
-}
 
+  Future<void> setDarkMode(bool value) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kDarkMode, value);
+  }
+
+  Future<bool> loadDarkMode() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kDarkMode) ?? false;
+  }
+}

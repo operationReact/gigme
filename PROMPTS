@@ -80,7 +80,7 @@ Reply with the number(s) or a custom request.
 mplemented localization scaffolding (Material localization delegates and supportedLocales) and added shared_preferences plus a preferences service. Haven’t yet wired the remaining enhancements (shake animation, remember-me persistence logic, password strength meter, long‑press reveal, email highlight styling, profile prefill, and using localized strings in sign-in). Please confirm which of the selected items (1,3,4,5,6,8,9,10) you want fully implemented now (all or a subset). Reply with “all” to proceed with every enhancement together, or list numbers.
 
 
-
+LOGIN and create profile screens for both freelancer and client roles with the following enhancements implemented:
 
 Done:
 Shake animation on invalid login (freelancer & client).
@@ -104,3 +104,97 @@ Integrate real secure password hashing & JWT on backend (current plain text).
 Implement email validation improvements (RFC pattern) and server-side alignment.
 Add multi-language example (e.g., intl_es.arb) to verify l10n pipeline.
 If you’d like the RegExp escape cleaned or any of the above items implemented next, tell me which number(s)
+
+
+=====================================================================================
+===============================================================================================
+SOME CHANGES SUGGESTED BY COPILOT FOR LANDING PAGE
+
+
+Landing page enhancement ideas (prioritize by impact first):
+Performance & resilience
+Poster image + low‑res blur-up before video
+Adaptive video source selection (HD/SD based on connection)
+Fallback static gradient if video fails (retry with exponential backoff)
+Prefetch next route assets (sign-in screens) after first paint
+Use RepaintBoundary around particle layer to reduce overdraw
+Accessibility & UX
+Skip to content / keyboard focus outline
+Reduce motion flag (disable particles / heavy animations if prefers-reduced-motion)
+Proper landmarks (header, main) + semantic heading levels
+Visual polish
+Parallax depth: slight vertical drift of headline vs cards based on scroll or pointer
+Dynamic gradient rotation speed tied to pointer velocity
+Optional dark mode toggle with persisted preference
+Personalization
+If remembered role present, auto-emphasize (scale/pulse) the relevant card
+A/B test alternate subtitle copy or CTA ordering
+Dynamic content
+Inject “Featured Job” or “Recently Hired” ticker in panel
+Real-time online freelancers count (lightweight websocket/poll)
+SEO / PWA (web)
+Structured data (Organization / WebSite JSON-LD)
+Better manifest: theme_color, background_color tuned to splash
+Meta preconnect for video CDN + backend API
+Maintainability
+Extract landing layout into smaller widgets: BackgroundLayer, ParticleLayer, ActionPanel
+Central config JSON for action cards (title, icon, gradient) to allow remote updates
+Analytics / instrumentation
+Fire view/impression events when cards enter viewport
+Track hover dwell time vs click-through
+Security / hardening
+CSP-friendly video loading (no unsafe-inline)
+Testing
+Golden tests for card layout at breakpoints
+Performance test: frame build budget under 8ms
+Action cards enhancement ideas:
+Micro-interactions
+3D tilt (Matrix4 on pointer position) with damped easing
+Animated gradient sweep on hover (ShaderMask or TweenSequence)
+Soft shadow elevation ramp + subtle scale (1.00 → 1.02)
+State awareness
+“New” / “Recommended” pill badge
+Progress ring if an onboarding step incomplete
+Accessibility
+Full keyboard navigation (focus highlight + Space/Enter activation)
+Semantics: role=button, descriptive hint text
+Larger tap target (min 48dp) w/ hitTestBehavior
+Content variability
+Allow secondary text row (dynamic stats: “324 active clients”)
+Load remote icon (cached) with shimmer placeholder
+Personalization
+Reorderable cards (long press drag) stored in prefs
+Remember last chosen role and visually accent it
+Performance
+Wrap each card in RepaintBoundary
+Use const gradients & icons where static to avoid rebuild churn
+Theming
+Gradient variants for light/dark
+High contrast mode swap (solid fills instead of gradients)
+Feedback
+Haptic (mobile) on tap (HapticFeedback.lightImpact)
+Long‑press shows quick actions (e.g., “Learn more”, “Docs”)
+Implementation quality
+Extract ActionCard widget with immutable model (title, subtitle, route, icon, gradient)
+Provide factory constructors for role types
+Analytics
+Fire analytics event with dwellTime + hover → click conversion ratio
+Optional sample (3D tilt core idea):
+OnListener for mouse/pointer, map local position to small rotation (e.g., rotateX/rotateY up to 6°) with AnimatedContainer or TweenAnimationBuilder.
+Reset on exit.
+Optional sample (focus ring):
+Use FocusableActionDetector + AnimatedContainer to draw an outline when focused.
+If you want, specify which items to implement next and I’ll apply code changes.
+
+
+
+============================================================================================
+
+Action Card enhacement
+
+Technical notes:
+Damped easing uses exponential smoothing each frame (controller repeats every 1600ms purely as a ticker).
+Perspective via setEntry(3,2,0.0016) plus rotateX/rotateY based on normalized pointer.
+Gradient sweep uses CustomPaint with BlendMode.plus for a luminous pass.
+Cleanup handled: controller disposed in dispose().
+No analyzer errors detected in main.dart after changes.
