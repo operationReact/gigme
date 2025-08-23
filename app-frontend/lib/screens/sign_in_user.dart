@@ -76,6 +76,7 @@ class _SignInUserPageState extends State<SignInUserPage> with SingleTickerProvid
       if (!user.hasFreelancerProfile) {
         Navigator.of(context).pushReplacementNamed('/freelancerProfile');
       } else {
+        // Navigate to freelancer home instead of profile page for a fuller dashboard experience
         Navigator.of(context).pushReplacementNamed(FreelancerHomePage.routeName);
       }
     } catch (e) {

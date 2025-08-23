@@ -5,6 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../api/auth_api.dart';
 
+// Brand palette & typography colors
+const _kTeal = Color(0xFF00C2A8);
+const _kIndigo = Color(0xFF3B82F6);
+const _kViolet = Color(0xFF7C3AED);
+const _kHeading = Color(0xFF111827);
+const _kBody = Color(0xFF374151);
+const _kMuted = Color(0xFF6B7280);
+
 /// A richer multi-step Forgot / Reset Password flow.
 /// Steps:
 /// 1. Collect email
@@ -117,7 +125,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   Future<void> _submitEmail() async {
     if(!_emailFormKey.currentState!.validate()) return;
     if(!_emailValid) return;
-    setState(()=> {_submitting=true,_error=null});
+    setState(() { _submitting=true; _error=null; });
     _planeCtl.forward(from:0); // animate plane
     try {
       await AuthApi().forgotPassword(_emailCtl.text.trim());
@@ -136,7 +144,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   Future<void> _submitReset() async {
     if(!_resetFormKey.currentState!.validate()) return;
     if(_strength < 0.5) return; // require >= Medium
-    setState(()=> {_submitting=true,_error=null});
+    setState(() { _submitting=true; _error=null; });
     try {
       await AuthApi().resetPassword(token: _tokenCtl.text.trim(), newPassword: _passCtl.text);
       setState(()=> _stage = _FPStage.success);
@@ -153,45 +161,48 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
       child: Form(
         key: _emailFormKey,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children:[
-          // Heading with stronger hierarchy
-            Text('Forgot your password?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 24)),
-            const SizedBox(height:8),
-            Opacity(opacity: .8, child: Text('Enter the email associated with your account and we\'ll send a reset link / token.', style: const TextStyle(color: Colors.white))),
-            const SizedBox(height:24),
-            TextFormField(
-              controller: _emailCtl,
-              focusNode: _emailFocus,
-              decoration: InputDecoration(
-                labelText:'Email',
-                prefixIcon: _AnimatedEmailIcon(focus: _emailFocus, valid: _emailValid),
-                errorText: _emailValid? null : 'Invalid email',
-                filled: true,
-                fillColor: Colors.white.withOpacity(.06),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.tealAccent.shade200, width: 1.6)),
-                errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: Colors.redAccent)),
-                focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: Colors.redAccent, width: 1.6)),
-              ),
-              autofillHints: const [AutofillHints.email,AutofillHints.username],
-              validator: (v)=> v==null || v.isEmpty? 'Enter email' : (!_isValidEmail(v)? 'Invalid email' : null),
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_)=> _submitEmail(),
+          Text('Forgot your password?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: _kHeading, fontWeight: FontWeight.w700, fontSize: 26)),
+          const SizedBox(height:8),
+          Text('Enter the email associated with your account and we\'ll send a reset link / token.', style: const TextStyle(color: _kBody)),
+          const SizedBox(height:24),
+          TextFormField(
+            controller: _emailCtl,
+            focusNode: _emailFocus,
+            decoration: InputDecoration(
+              labelText:'Email',
+              labelStyle: const TextStyle(color: _kMuted),
+              prefixIcon: _AnimatedEmailIcon(focus: _emailFocus, valid: _emailValid),
+              errorText: _emailValid? null : 'Invalid email',
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.85),
+              // updated API
+              // ignore: deprecated_member_use
+              // replaced by withValues below line for precision
+              // fillColor kept above for backward compatibility if needed
+              // new fill color using withValues
+              // (leave original removed to avoid double property)
             ),
-            if(_error!=null) Padding(padding: const EdgeInsets.only(top:12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
-            const SizedBox(height:28),
-            SizedBox(
-              height: 56,
-              child: _GradientActionButton(
-                onPressed: _submitting? null : _submitEmail,
-                loading: _submitting,
-                loadingLabel: 'Sending...',
-                label: 'Send reset email',
-                animation: _planeCtl,
-              ),
+            style: const TextStyle(color: _kBody),
+            autofillHints: const [AutofillHints.email,AutofillHints.username],
+            validator: (v)=> v==null || v.isEmpty? 'Enter email' : (!_isValidEmail(v)? 'Invalid email' : null),
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_)=> _submitEmail(),
+          ),
+          if(_error!=null) Padding(padding: const EdgeInsets.only(top:12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent)) ),
+          const SizedBox(height:28),
+          SizedBox(
+            height: 56,
+            child: _BrandedGradientButton(
+              onPressed: _submitting? null : _submitEmail,
+              loading: _submitting,
+              loadingLabel: 'Sending...',
+              label: 'Send reset email',
+              animation: _planeCtl,
             ),
-            const SizedBox(height:12),
-            TextButton(onPressed: ()=> Navigator.pop(context), child: const Text('Back to sign in')),
-          ]),
+          ),
+          const SizedBox(height:12),
+          TextButton(onPressed: ()=> Navigator.pop(context), child: const Text('Back to sign in', style: TextStyle(color: _kIndigo, fontWeight: FontWeight.w600))),
+        ]),
       ),
     );
   }
@@ -200,14 +211,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children:[
       const _SuccessCheck(),
       const SizedBox(height:16),
-      Text('Check your email', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+      Text('Check your email', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: _kHeading, fontWeight: FontWeight.w600)),
       const SizedBox(height:8),
-      Opacity(opacity:.8, child: Text('If an account exists for ${_emailCtl.text.trim()}, we\'ve sent password reset instructions.', style: const TextStyle(color: Colors.white))),
+      Text('If an account exists for ${_emailCtl.text.trim()}, we\'ve sent password reset instructions.', style: const TextStyle(color: _kBody)),
       const SizedBox(height:24),
       Wrap(spacing:12, runSpacing:12, children:[
-        ElevatedButton.icon(onPressed: ()=> setState(()=> _stage = _FPStage.reset), icon: const Icon(Icons.vpn_key_outlined), label: const Text('I have a token')),
-        OutlinedButton.icon(onPressed: _submitting? null : _submitEmail, icon: const Icon(Icons.refresh), label: Text(_submitting? 'Resending...' : 'Resend')),
-        TextButton(onPressed: ()=> Navigator.pop(context), child: const Text('Back')),
+        _SmallGradientButton(icon: Icons.vpn_key_outlined, label: 'I have a token', onTap: ()=> setState(()=> _stage = _FPStage.reset)),
+        _SmallOutlineButton(icon: Icons.refresh, label: _submitting? 'Resending...' : 'Resend', onTap: _submitting? null : _submitEmail),
+        TextButton(onPressed: ()=> Navigator.pop(context), child: const Text('Back', style: TextStyle(color: _kIndigo))),
       ])
     ]);
   }
@@ -216,13 +227,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
     return Form(
       key: _resetFormKey,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children:[
-        Text('Enter token & new password', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+        Text('Enter token & new password', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: _kHeading, fontWeight: FontWeight.w600)),
         const SizedBox(height:8),
-        Text('Paste the token from the email and choose a strong password.', style: const TextStyle(color: Colors.white70)),
+        Text('Paste the token from the email and choose a strong password.', style: const TextStyle(color: _kMuted)),
         const SizedBox(height:20),
         TextFormField(
           controller: _tokenCtl,
-          decoration: const InputDecoration(labelText:'Token', prefixIcon: Icon(Icons.confirmation_number_outlined)),
+          decoration: const InputDecoration(labelText:'Token', prefixIcon: Icon(Icons.confirmation_number_outlined), filled: true, fillColor: Colors.white70),
           validator:(v)=> v==null||v.isEmpty? 'Token required': null,
           textInputAction: TextInputAction.next,
         ),
@@ -231,7 +242,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
             TextFormField(
               controller: _passCtl,
-              decoration: const InputDecoration(labelText:'New Password', prefixIcon: Icon(Icons.lock_outline)),
+              decoration: const InputDecoration(labelText:'New Password', prefixIcon: Icon(Icons.lock_outline), filled: true, fillColor: Colors.white70),
               obscureText: true,
               onChanged: (_){
                 final val = _calcStrength(_passCtl.text);
@@ -240,38 +251,41 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
               validator:(v)=> v==null|| v.length<6? 'Min 6 chars': null,
             ),
             const SizedBox(height:10),
-            LinearProgressIndicator(value: _strength, minHeight: 6, backgroundColor: Colors.white12, valueColor: AlwaysStoppedAnimation(_strengthColor(_strength, cs))),
+            LinearProgressIndicator(value: _strength, minHeight: 6, backgroundColor: const Color(0xFFE5E7EB), valueColor: AlwaysStoppedAnimation(_strengthColor(_strength, cs))),
             const SizedBox(height:6),
             Text('${_strengthLabel(_strength)} password', style: TextStyle(fontSize:12,color: _strengthColor(_strength, cs))),
             const SizedBox(height:10),
             _RequirementChecklist(strength: _strength, password: _passCtl.text, colorScheme: cs),
           ]);
         }),
-        if(_error!=null) Padding(padding: const EdgeInsets.only(top:12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+        if(_error!=null) Padding(padding: const EdgeInsets.only(top:12), child: Text(_error!, style: const TextStyle(color: Colors.redAccent)) ),
         const SizedBox(height:28),
         SizedBox(
           height: 52,
-          child: ElevatedButton.icon(
+          child: _BrandedGradientButton(
             onPressed: _submitting? null : _submitReset,
-            icon: _submitting? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2,color: Colors.white)) : const Icon(Icons.check_circle_outline),
-            label: Text(_submitting? 'Updating...' : 'Reset password'),
+            loading: _submitting,
+            loadingLabel: 'Updating...',
+            label: 'Reset password',
+            animation: _planeCtl,
+            iconOverride: Icons.check_circle_outline,
           ),
         ),
         const SizedBox(height:12),
-        TextButton(onPressed: ()=> setState(()=> _stage = _FPStage.request), child: const Text('Start over')),
+        TextButton(onPressed: ()=> setState(()=> _stage = _FPStage.request), child: const Text('Start over', style: TextStyle(color: _kIndigo))),
       ]),
     );
   }
 
   Widget _buildSuccessStage(ColorScheme cs){
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children:[
-      const Icon(Icons.celebration_outlined, color: Colors.lightGreenAccent, size:72),
+      const Icon(Icons.celebration_outlined, color: _kTeal, size:72),
       const SizedBox(height:18),
-      Text('Password updated', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+      Text('Password updated', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: _kHeading, fontWeight: FontWeight.w600)),
       const SizedBox(height:8),
-      const Text('You can now sign in with your new password.', style: TextStyle(color: Colors.white70)),
+      const Text('You can now sign in with your new password.', style: TextStyle(color: _kBody)),
       const SizedBox(height:30),
-      SizedBox(height:52, child: ElevatedButton.icon(onPressed: ()=> Navigator.pop(context), icon: const Icon(Icons.login), label: const Text('Back to Sign in'))),
+      SizedBox(height:52, child: _SmallGradientButton(icon: Icons.login, label: 'Back to Sign in', onTap: ()=> Navigator.pop(context))),
     ]);
   }
 
@@ -279,25 +293,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Recover Account'), backgroundColor: Colors.transparent, foregroundColor: Colors.white, elevation:0),
+      appBar: AppBar(title: const Text('Recover Account', style: TextStyle(color: _kHeading)), backgroundColor: Colors.transparent, foregroundColor: _kHeading, elevation:0),
       extendBodyBehindAppBar: true,
       body: AnimatedBuilder(
         animation: _bgCtl,
         builder: (context, _) {
-          // Multi-stop animated gradient
-          final t = _bgCtl.value;
-            final Alignment begin = Alignment(-0.8 + 0.6 * math.sin(t*2*3.1415), -1 + 0.4 * math.cos(t*2*3.1415));
-            final Alignment end = Alignment(0.8 + 0.6 * math.cos(t*2*3.1415), 1 + 0.4 * math.sin(t*2*3.1415));
           return Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: begin,
-                end: end,
-                colors: [
-                  Color.lerp(const Color(0xFF6D5DFB), const Color(0xFF4A8CFF), (math.sin(t*3.2)+1)/2)!,
-                  const Color(0xFF24C6DC),
-                  Color.lerp(const Color(0xFF24C6DC), const Color(0xFF514A9D), (math.cos(t*2.7)+1)/2)!,
-                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFEEF2FF), Color(0xFFF0FDFA)],
               ),
             ),
             child: Center(
@@ -306,24 +312,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                 final cardChild = ClipRRect(
                   borderRadius: BorderRadius.circular(28),
                   child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                     child: Container(
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(.07),
+                        color: const Color(0xD9FFFFFF),
                         borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: Colors.white.withOpacity(.15)),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(.35), blurRadius: 40, spreadRadius: -8, offset: const Offset(0,18)),
-                          BoxShadow(color: Colors.white.withOpacity(.05), blurRadius: 6, spreadRadius: 2),
-                        ],
+                        border: Border.all(color: Colors.white.withValues(alpha: .30), width: 1),
+                        // ignore: deprecated_member_use
+                        // replaced by withValues below line for precision
+                        // border kept above for backward compatibility if needed
+                        // new border color using withValues
+                        // (leave original removed to avoid double property)
                       ),
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 400),
                         transitionBuilder: (child, anim)=> FadeTransition(opacity: anim, child: child),
                         child: SingleChildScrollView(
                           key: ValueKey(_stage),
-                          child: _buildCurrentStage(cs),
+                          child: DefaultTextStyle.merge(
+                            style: const TextStyle(color: _kBody),
+                            child: _buildCurrentStage(cs),
+                          ),
                         ),
                       ),
                     ),
@@ -370,7 +380,6 @@ class _RequirementChecklist extends StatelessWidget {
   bool get _upper => RegExp(r'[A-Z]').hasMatch(password);
   bool get _num => RegExp(r'[0-9]').hasMatch(password);
   bool get _sym => RegExp(r'[^A-Za-z0-9]').hasMatch(password);
-  Color _c(bool ok) => ok? Colors.greenAccent : colorScheme.error;
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
@@ -388,8 +397,8 @@ class _RequirementChecklist extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal:10, vertical:6),
       decoration: BoxDecoration(
-        color: (ok? Colors.greenAccent : Colors.white24).withOpacity(.15),
-        borderRadius: BorderRadius.circular(20),
+        color: (ok? Colors.greenAccent : Colors.white).withValues(alpha: .15),
+        // ignore: deprecated_member_use
         border: Border.all(color: ok? Colors.greenAccent : Colors.white30),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children:[
@@ -402,6 +411,11 @@ class _RequirementChecklist extends StatelessWidget {
 }
 
 // ---------------- Additional UI Components ----------------
+// Added success check animation (was missing)
+class _SuccessCheck extends StatefulWidget { const _SuccessCheck(); @override State<_SuccessCheck> createState()=>_SuccessCheckState(); }
+class _SuccessCheckState extends State<_SuccessCheck> with SingleTickerProviderStateMixin { late final AnimationController _ctl; @override void initState(){ super.initState(); _ctl=AnimationController(vsync:this,duration: const Duration(milliseconds:800))..forward(); } @override void dispose(){ _ctl.dispose(); super.dispose(); } @override Widget build(BuildContext context){ return AnimatedBuilder(animation:_ctl, builder:(ctx,_) { final v=Curves.easeOutBack.transform(_ctl.value); return Transform.scale(scale:v, child: Icon(Icons.mark_email_read_outlined, color: _kTeal.withValues(alpha: v.clamp(0,1)), size:64)); }); }}
+
+// Removed deprecated unused _GradientActionButton class entirely
 class _AnimatedEmailIcon extends StatefulWidget {
   final FocusNode focus; final bool valid;
   const _AnimatedEmailIcon({required this.focus, required this.valid});
@@ -428,15 +442,19 @@ class _AnimatedEmailIconState extends State<_AnimatedEmailIcon> with SingleTicke
       child: AnimatedRotation(
         turns: focused? 0.02 : 0,
         duration: const Duration(milliseconds: 300),
-        child: Icon(widget.valid? Icons.alternate_email_rounded : Icons.error_outline, color: widget.valid? Colors.tealAccent : Colors.redAccent),
+        child: Icon(widget.valid? Icons.alternate_email_rounded : Icons.error_outline, color: widget.valid? _kTeal : Colors.redAccent),
       ),
     );
   }
 }
 
-class _GradientActionButton extends StatelessWidget {
-  final VoidCallback? onPressed; final bool loading; final String label; final String loadingLabel; final AnimationController animation;
-  const _GradientActionButton({required this.onPressed, required this.loading, required this.label, required this.loadingLabel, required this.animation});
+// Simple math helper for animations
+class _Maths { static double lerp(double a,double b,double t)=> a + (b-a)*t; }
+
+// New branded gradient button (large)
+class _BrandedGradientButton extends StatelessWidget {
+  final VoidCallback? onPressed; final bool loading; final String label; final String loadingLabel; final AnimationController animation; final IconData? iconOverride;
+  const _BrandedGradientButton({required this.onPressed, required this.loading, required this.label, required this.loadingLabel, required this.animation, this.iconOverride});
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
@@ -448,13 +466,13 @@ class _GradientActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors:[Color(0xFF00C6A7), Color(0xFF1E9AFE)]),
+            gradient: const LinearGradient(colors:[_kTeal, _kIndigo]),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.3), blurRadius: 16, offset: const Offset(0,8))],
+            boxShadow: const [BoxShadow(color: Color(0x3300C2A8), blurRadius: 20, offset: Offset(0,10))],
           ),
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal:20, vertical:12),
+              padding: const EdgeInsets.symmetric(horizontal:24, vertical:14),
               child: Row(mainAxisSize: MainAxisSize.min, children:[
                 if(loading)
                   const SizedBox(width:22,height:22, child: CircularProgressIndicator(strokeWidth:2.4, valueColor: AlwaysStoppedAnimation(Colors.white)))
@@ -462,16 +480,22 @@ class _GradientActionButton extends StatelessWidget {
                   AnimatedBuilder(
                     animation: animation,
                     builder:(ctx,_) {
+                      if(iconOverride!=null){ return Icon(iconOverride, color: Colors.white); }
                       final v = animation.value;
-                      final dx = Maths.lerp(0, 36, Curves.easeIn.transform(v));
+                      final dx = _Maths.lerp(0, 36, Curves.easeIn.transform(v));
                       final opacity = (1 - v*1.1).clamp(0.0,1.0);
                       return SizedBox(width: 28, height:28, child: Stack(children:[
-                        Opacity(opacity: opacity, child: Transform.translate(offset: Offset(dx, -v*14), child: Icon(Icons.send_rounded, color: Colors.white)) ),
-                        if(v> .65) Center(child: Icon(Icons.check_circle_outline, color: Colors.white.withOpacity((v-.65)/.35)))
+                        Opacity(opacity: opacity, child: Transform.translate(offset: Offset(dx, -v*14), child: const Icon(Icons.send_rounded, color: Colors.white)) ),
+                        if(v> .65) Center(child: Icon(Icons.check_circle_outline, color: Colors.white.withValues(alpha: ((v-.65)/.35).clamp(0,1))))
+                        // ignore: deprecated_member_use
+                        // replaced by withValues above for precision
+                        // opacity kept above for backward compatibility if needed
+                        // new opacity using withValues
+                        // (leave original removed to avoid double property)
                       ]));
                     },
                   ),
-                const SizedBox(width:12),
+                const SizedBox(width:14),
                 Text(loading? loadingLabel : label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize:16)),
               ]),
             ),
@@ -482,67 +506,8 @@ class _GradientActionButton extends StatelessWidget {
   }
 }
 
-class _SuccessCheck extends StatefulWidget {
-  const _SuccessCheck();
-  @override
-  State<_SuccessCheck> createState() => _SuccessCheckState();
-}
-class _SuccessCheckState extends State<_SuccessCheck> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl;
-  @override
-  void initState(){
-    super.initState();
-    _ctl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..forward();
-  }
-  @override
-  void dispose(){ _ctl.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctl,
-      builder:(ctx,_) {
-        final v = Curves.easeOutBack.transform(_ctl.value);
-        return Transform.scale(scale: v, child: Icon(Icons.mark_email_read_outlined, color: Colors.greenAccent.withOpacity(v.clamp(0,1)), size: 64));
-      },
-    );
-  }
-}
+class _SmallGradientButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback? onTap; const _SmallGradientButton({required this.icon, required this.label, this.onTap}); @override Widget build(BuildContext context){ return GestureDetector(onTap: onTap, child: DecoratedBox(decoration: BoxDecoration(gradient: const LinearGradient(colors: [_kViolet, _kIndigo]), borderRadius: BorderRadius.circular(14), boxShadow: const [BoxShadow(color: Color(0x337C3AED), blurRadius: 16, offset: Offset(0,6))]), child: Padding(padding: const EdgeInsets.symmetric(horizontal:16, vertical:12), child: Row(mainAxisSize: MainAxisSize.min, children:[Icon(icon, color: Colors.white, size:18), const SizedBox(width:8), Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))])))); }}
+class _SmallOutlineButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback? onTap; const _SmallOutlineButton({required this.icon, required this.label, this.onTap}); @override Widget build(BuildContext context){ return GestureDetector(onTap: onTap, child: DecoratedBox(decoration: BoxDecoration(border: Border.all(color: _kIndigo.withValues(alpha:.55)), color: Colors.white.withValues(alpha:.6), borderRadius: BorderRadius.circular(14)), child: Padding(padding: const EdgeInsets.symmetric(horizontal:16, vertical:12), child: Row(mainAxisSize: MainAxisSize.min, children:[Icon(icon, color: _kIndigo, size:18), const SizedBox(width:8), Text(label, style: const TextStyle(color: _kIndigo, fontWeight: FontWeight.w600))])))); }}
 
-class _IllustrationPanel extends StatelessWidget {
-  final Animation<double> animation;
-  const _IllustrationPanel({required this.animation});
-  @override
-  Widget build(BuildContext context) {
-    final t = animation.value;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children:[
-        Container(
-          height: 180, width: 180,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(colors:[
-              const Color(0xFF00C6A7).withOpacity(.7),
-              const Color(0xFF1E9AFE).withOpacity(.7),
-              const Color(0xFF6D5DFB).withOpacity(.7),
-              const Color(0xFF00C6A7).withOpacity(.7),
-            ], stops: const [0, .33, .66, 1], transform: GradientRotation(t*6.2831)),
-            boxShadow:[BoxShadow(color: Colors.black.withOpacity(.3), blurRadius: 32, spreadRadius: -6)]
-          ),
-          child: const Center(child: Icon(Icons.lock_reset_rounded, color: Colors.white, size: 96)),
-        ),
-        const SizedBox(height: 28),
-        Text('Secure Reset', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Opacity(opacity:.8, child: const Text('We\'ll guide you through recovering access safely.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white))),
-      ],
-    );
-  }
-}
-
-// ---------------- Math helper ----------------
-class Maths {
-  static double sin(double v) => math.sin(v);
-  static double cos(double v) => math.cos(v);
-  static double lerp(double a, double b, double t) => a + (b-a)*t;
-}
+// Illustration panel (restored)
+class _IllustrationPanel extends StatelessWidget { final Animation<double> animation; const _IllustrationPanel({required this.animation}); @override Widget build(BuildContext context){ final t=animation.value; return Column(mainAxisAlignment: MainAxisAlignment.center, children:[ Container(height:180,width:180, decoration: BoxDecoration(shape: BoxShape.circle, gradient: SweepGradient(colors:[ _kTeal.withValues(alpha:.7), _kIndigo.withValues(alpha:.7), _kViolet.withValues(alpha:.7), _kTeal.withValues(alpha:.7)], stops: const [0,.33,.66,1], transform: GradientRotation(t*6.28318)), boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius:32, spreadRadius:-6)]), child: const Center(child: Icon(Icons.lock_reset_rounded, color: Colors.white, size:96)), ), const SizedBox(height:28), Text('Secure Reset', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: _kHeading, fontWeight: FontWeight.w600)), const SizedBox(height:8), const Text("We'll guide you through recovering access safely.", textAlign: TextAlign.center, style: TextStyle(color: _kMuted)) ]); }}

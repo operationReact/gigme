@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../api/profile_api.dart';
+import '../services/session_service.dart';
+import 'dart:ui' as ui;
 
 enum PortfolioCategory { videos, photos, documents }
 
@@ -49,12 +52,38 @@ class _ProfileFreelancerPageState extends State<ProfileFreelancerPage> with Sing
   void initState() {
     super.initState();
     _introCtl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..forward();
+    _load();
   }
 
-  @override
-  void dispose() {
-    _introCtl.dispose();
-    super.dispose();
+  FreelancerProfileDto? _profile;
+  bool _loading = true;
+  String? _error;
+
+  Future<void> _load() async {
+    final user = SessionService.instance.user;
+    if (user == null) {
+      setState(() => {_loading = false, _error = 'Not authenticated'});
+      return;
+    }
+    try {
+      final dto = await ProfileApi().getFreelancer(user.id);
+      if (!mounted) return;
+      if (dto == null) {
+        // No profile yet -> navigate to create screen
+        Navigator.of(context).pushReplacementNamed('/freelancerProfile');
+        return;
+      }
+      setState(() => {_profile = dto, _loading = false, _error = null});
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => {_error = 'Failed to load profile', _loading = false});
+    }
+  }
+
+  List<String> get _skillsList {
+    final csv = _profile?.skillsCsv;
+    if (csv == null || csv.trim().isEmpty) return const [];
+    return csv.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
   List<_PortfolioItem> get _filteredItems {
@@ -75,200 +104,130 @@ class _ProfileFreelancerPageState extends State<ProfileFreelancerPage> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Freelancer Profile')),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [cs.secondary.withOpacity(0.35), cs.tertiary.withOpacity(0.35)],
+    if (_loading) {
+      return Scaffold(appBar: AppBar(title: const Text('Freelancer Profile')), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Freelancer Profile')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () { setState(() => _loading = true); _load(); },
+                child: const Text('Retry'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pushReplacementNamed('/freelancerProfile'),
+                child: const Text('Create / Edit Profile'),
+              ),
+            ],
           ),
         ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header (stagger 0)
-                    FadeTransition(
-                      opacity: _seg(0),
-                      child: SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(_seg(0)),
-                        child: Card(
-                          color: cs.surface,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: cs.outlineVariant),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 36,
-                                  backgroundColor: cs.secondary.withOpacity(0.15),
-                                  child: Icon(Icons.person_outline, size: 36, color: cs.primary),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Your Name', style: Theme.of(context).textTheme.titleLarge),
-                                      const SizedBox(height: 4),
-                                      Text('Freelancer • Mobile & Web', style: Theme.of(context).textTheme.bodyMedium),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: const [
-                                          Chip(label: Text('Flutter')),
-                                          Chip(label: Text('Dart')),
-                                          Chip(label: Text('Firebase')),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                FilledButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.edit_outlined),
-                                  label: const Text('Edit Profile'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Rating section (stagger 1)
-                    FadeTransition(
-                      opacity: _seg(1),
-                      child: SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(_seg(1)),
-                        child: _RatingCard(average: averageRating, count: reviewCount),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // About (stagger 2)
-                    FadeTransition(
-                      opacity: _seg(2),
-                      child: SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(_seg(2)),
-                        child: Card(
-                          color: cs.surface,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: cs.outlineVariant),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text('About', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Short bio goes here. Highlight your experience, niche and recent wins.',
-                                ),
-                                SizedBox(height: 16),
-                                Text('Contact', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                                SizedBox(height: 8),
-                                Text('email@example.com'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Portfolio with category filters (stagger 3)
-                    FadeTransition(
-                      opacity: _seg(3),
-                      child: SlideTransition(
-                        position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(_seg(3)),
-                        child: Card(
-                          color: cs.surface,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: cs.outlineVariant),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      );
+    }
+    final p = _profile!;
+    final sessionUser = SessionService.instance.user;
+    final cs = Theme.of(context).colorScheme;
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).pushNamed('/freelancerProfile'),
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('Edit Profile'),
+      ),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Freelancer Profile'),
+        actions: [IconButton(onPressed: _load, tooltip: 'Refresh', icon: const Icon(Icons.refresh))],
+      ),
+      body: Stack(
+        children: [
+          // Animated gradient hero backdrop (simple subtle)
+          Container(
+            height: 260,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  cs.secondary.withValues(alpha: 0.35),
+                  cs.tertiary.withValues(alpha: 0.28),
+                  cs.primary.withValues(alpha: 0.15),
+                ],
+              ),
+            ),
+          ),
+          // Content
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final isWide = constraints.maxWidth >= 980;
+                  final sidePad = isWide ? 40.0 : 16.0;
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(sidePad, 24, sidePad, 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Portfolio & Presence', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 28),
+                        if (isWide)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    Text('Portfolio', style: Theme.of(context).textTheme.titleMedium),
-                                    SegmentedButton<PortfolioCategory>(
-                                      segments: const [
-                                        ButtonSegment(
-                                          value: PortfolioCategory.videos,
-                                          label: Text('Videos'),
-                                          icon: Icon(Icons.videocam_outlined),
-                                        ),
-                                        ButtonSegment(
-                                          value: PortfolioCategory.photos,
-                                          label: Text('Photos'),
-                                          icon: Icon(Icons.image_outlined),
-                                        ),
-                                        ButtonSegment(
-                                          value: PortfolioCategory.documents,
-                                          label: Text('Documents'),
-                                          icon: Icon(Icons.description_outlined),
-                                        ),
-                                      ],
-                                      selected: {_selected},
-                                      onSelectionChanged: (s) {
-                                        if (s.isNotEmpty) {
-                                          setState(() => _selected = s.first);
-                                        }
-                                      },
-                                    ),
+                                    _GlassCard(child: _ProfileHeaderBlock(profile: p, skills: _skillsList, rating: averageRating, count: reviewCount)),
+                                    const SizedBox(height: 20),
+                                    _GlassCard(child: _AboutContactBlock(profile: p, email: sessionUser?.email)),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                if (_filteredItems.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Text(
-                                      'No items found in this section.',
-                                      style: Theme.of(context).textTheme.bodyMedium,
-                                    ),
-                                  )
-                                else
-                                  _PortfolioGrid(items: _filteredItems),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                              ),
+                              const SizedBox(width: 28),
+                              Expanded(
+                                flex: 7,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    _GlassCard(child: _StatsRow()),
+                                    const SizedBox(height: 20),
+                                    _GlassCard(child: _PortfolioPlaceholder()),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        else ...[
+                          _GlassCard(child: _ProfileHeaderBlock(profile: p, skills: _skillsList, rating: averageRating, count: reviewCount)),
+                          const SizedBox(height: 20),
+                          _GlassCard(child: _StatsRow()),
+                          const SizedBox(height: 20),
+                          _GlassCard(child: _PortfolioPlaceholder()),
+                          const SizedBox(height: 20),
+                          _GlassCard(child: _AboutContactBlock(profile: p, email: sessionUser?.email)),
+                        ],
+                      ],
                     ),
-                   ],
-                 ),
-               ),
-             ),
-           ),
-         ),
-       ),
-     );
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _introCtl.dispose();
+    super.dispose();
   }
 }
 
@@ -463,3 +422,95 @@ class _IconPreview extends StatelessWidget {
     );
   }
 }
+
+// ===== New glass / layout helper widgets for revamped profile page =====
+class _GlassCard extends StatelessWidget {
+  final Widget child; final EdgeInsetsGeometry padding; final double radius;
+  const _GlassCard({required this.child, this.padding = const EdgeInsets.all(20), this.radius = 24});
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              color: Colors.white.withValues(alpha: 0.07),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0,12), spreadRadius: -8)],
+            ),
+            child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHeaderBlock extends StatelessWidget {
+  final FreelancerProfileDto profile; final List<String> skills; final double rating; final int count;
+  const _ProfileHeaderBlock({required this.profile, required this.skills, required this.rating, required this.count});
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Stack(children:[
+            CircleAvatar(radius: 48, backgroundColor: cs.secondary.withValues(alpha:0.25), child: Icon(Icons.person_outline, size: 48, color: cs.onSurface)),
+            Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, boxShadow:[BoxShadow(color: cs.secondary.withValues(alpha: 0.55), blurRadius: 36, spreadRadius: -6)])))
+          ]),
+          const SizedBox(width: 20),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+            Text(profile.displayName, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            if(profile.professionalTitle!=null) ...[
+              const SizedBox(height:4),
+              Text(profile.professionalTitle!, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70)),
+            ],
+            const SizedBox(height:10),
+            _StarRatingAnimated(rating: rating),
+            const SizedBox(height:6),
+            Text('${rating.toStringAsFixed(1)} / 5.0  •  $count reviews', style: Theme.of(context).textTheme.bodySmall),
+          ]))
+        ]),
+        const SizedBox(height: 16),
+        if(skills.isNotEmpty) Wrap(spacing:10, runSpacing:10, children: skills.map((s)=>Chip(label: Text(s))).toList()),
+      ],
+    );
+  }
+}
+
+class _StarRatingAnimated extends StatefulWidget { final double rating; const _StarRatingAnimated({required this.rating}); @override State<_StarRatingAnimated> createState()=>_StarRatingAnimatedState(); }
+class _StarRatingAnimatedState extends State<_StarRatingAnimated> with SingleTickerProviderStateMixin { late final AnimationController _c; @override void initState(){ super.initState(); _c=AnimationController(vsync:this, duration: const Duration(milliseconds: 700))..forward(); }
+  @override void dispose(){ _c.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context){ final full = widget.rating.floor(); final half = (widget.rating-full)>=0.25 && (widget.rating-full)<0.85; return Row(children: List.generate(5, (i){ IconData ic; if(i<full) ic=Icons.star; else if(i==full && half) ic=Icons.star_half; else ic=Icons.star_outline; return ScaleTransition(scale: CurvedAnimation(parent:_c, curve: Interval(i/5,1, curve: Curves.easeOutBack)), child: Icon(ic, color: Colors.amber, size:22)); })); }
+}
+
+class _AboutContactBlock extends StatelessWidget {
+  final FreelancerProfileDto profile; final String? email; const _AboutContactBlock({required this.profile, required this.email});
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('About', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+      const SizedBox(height:8),
+      Text(profile.bio==null || profile.bio!.isEmpty ? 'No bio added yet.' : profile.bio!),
+      const SizedBox(height:20),
+      Text('Contact', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+      const SizedBox(height:8),
+      Row(children:[ const Icon(Icons.email_outlined, size:18), const SizedBox(width:8), Expanded(child: Text(email ?? 'Unknown')) ]),
+    ]);
+  }
+}
+
+class _StatsRow extends StatelessWidget { @override Widget build(BuildContext context){
+  return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children:[
+    Text('Stats', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+    const SizedBox(height:12),
+    LayoutBuilder(builder:(ctx,c){ final wide=c.maxWidth>560; final tiles=[ _MiniStat(label:'Projects', value:'24'), _MiniStat(label:'Clients', value:'11'), _MiniStat(label:'Earnings', value:'18.2k'), _MiniStat(label:'Success', value:'96%') ]; if(wide){ return Row(children: tiles.expand((t)=>[Expanded(child:t), const SizedBox(width:14)]).toList()..removeLast()); } return Column(children: tiles.expand((t)=>[t, const SizedBox(height:14)]).toList()..removeLast()); }),
+  ]);
+}}
+class _MiniStat extends StatelessWidget { final String label; final String value; const _MiniStat({required this.label, required this.value}); @override Widget build(BuildContext context){ return Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: Colors.white.withValues(alpha:0.08), border: Border.all(color: Colors.white.withValues(alpha:0.14))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)), const SizedBox(height:4), Text(label, style: Theme.of(context).textTheme.bodySmall) ])); }}
+
+class _PortfolioPlaceholder extends StatelessWidget { @override Widget build(BuildContext context){ return Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children:[ Text('Portfolio', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)), TextButton.icon(onPressed: (){}, icon: const Icon(Icons.add), label: const Text('Add')) ]), const SizedBox(height:12), Text('Portfolio feature coming soon. Add examples of your work to stand out.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: Colors.white70)) ]); }}

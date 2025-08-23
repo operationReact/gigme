@@ -24,6 +24,13 @@ public class Job {
     @JoinColumn(name = "freelancer_id")
     private UserAccount assignedFreelancer; // optional
 
+    @Column(nullable = false)
+    private long budgetCents = 0L;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 24)
+    private com.gigmework.backend.domain.JobStatus status = com.gigmework.backend.domain.JobStatus.OPEN;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -35,13 +42,20 @@ public class Job {
         this.clientOwner = clientOwner;
     }
 
+    public Job(String title, String description, UserAccount clientOwner, long budgetCents) {
+        this(title, description, clientOwner);
+        this.budgetCents = budgetCents;
+    }
+
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
     public UserAccount getClientOwner() { return clientOwner; }
     public UserAccount getAssignedFreelancer() { return assignedFreelancer; }
     public Instant getCreatedAt() { return createdAt; }
+    public long getBudgetCents() { return budgetCents; }
+    public com.gigmework.backend.domain.JobStatus getStatus() { return status; }
 
-    public void assignFreelancer(UserAccount freelancer) { this.assignedFreelancer = freelancer; }
+    public void assignFreelancer(UserAccount freelancer) { this.assignedFreelancer = freelancer; this.status = com.gigmework.backend.domain.JobStatus.ASSIGNED; }
+    public void markCompleted() { this.status = com.gigmework.backend.domain.JobStatus.COMPLETED; }
 }
-

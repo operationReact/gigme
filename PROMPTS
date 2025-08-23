@@ -372,3 +372,25 @@ Shared components:
 Centralized styling in sign_in_components.dart (primary button, input decoration, strength meter, social buttons, hover links).
 All updated files compile without errors.
 Let me know if you want dark-mode specific tweaks, reduced motion option, or real OAuth wiring next.
+
+
+
+=============================================================
+
+
+FreelancerHomePage:
+
+
+
+Added brand color constants (teal, indigo, violet) and typography colors.
+Replaced dark/blur backdrop with soft neutral gradient (EEF2FF → F0FDFA).
+Updated all GlassCard panels to semi-opaque white (≈85%), subtle 1px white border (30% alpha) and soft layered shadows.
+Converted KPI/stat, portfolio item, action chip, FAB, and header buttons to gradient styles (teal→indigo or violet→indigo) with glow shadows.
+Adjusted text hierarchy (headings #111827, body #374151, muted #6B7280) and chip styles.
+Ensured consistent styling for profile, activity, contacts, etc
+
+
+ou were being routed to /#/profile/freelancer (ProfileFreelancerPage), which is the detailed profile display (it first tries to load your freelancer profile from the backend). You expected a “home” dashboard, which in this project is actually at /#/home/freelancer (FreelancerHomePage). The sign‑in flow previously sent users with an existing profile to the profile page, not the home dashboard—so you saw no apparent change beyond the URL (and if the backend call failed or returned no data, the page could look empty or immediately try to redirect to the create/edit screen).
+
+
+

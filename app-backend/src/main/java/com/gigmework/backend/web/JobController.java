@@ -35,9 +35,17 @@ public class JobController {
 
     public record JobCreateRequest(String title, String description) {}
 
-    public record JobDto(Long id, String title, String description, String clientOwnerEmail) {
+    public record JobDto(Long id, String title, String description, String clientOwnerEmail, String assignedFreelancerEmail, long budgetCents, String status) {
         public static JobDto from(Job j) {
-            return new JobDto(j.getId(), j.getTitle(), j.getDescription(), j.getClientOwner() != null ? j.getClientOwner().getEmail() : null);
+            return new JobDto(
+                    j.getId(),
+                    j.getTitle(),
+                    j.getDescription(),
+                    j.getClientOwner() != null ? j.getClientOwner().getEmail() : null,
+                    j.getAssignedFreelancer() != null ? j.getAssignedFreelancer().getEmail() : null,
+                    j.getBudgetCents(),
+                    j.getStatus().name()
+            );
         }
     }
 }
