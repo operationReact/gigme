@@ -905,93 +905,72 @@ class _ApplyForWorkFab extends StatelessWidget {
   }
 }
 
-// --- PLACEHOLDER WIDGETS TO FIX COMPILATION ---
+// --- PLACEHOLDER WIDGETS FOR MISSING CLASSES ---
 class _GradientButton extends StatelessWidget {
   final IconData icon;
   final String label;
   const _GradientButton({super.key, required this.icon, required this.label});
   @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: () {},
-      icon: Icon(icon),
-      label: Text(label),
-    );
-  }
+  Widget build(BuildContext context) => ElevatedButton.icon(onPressed: () {}, icon: Icon(icon), label: Text(label));
 }
-
 class _OutlineSoftButton extends StatelessWidget {
   final IconData icon;
   final String label;
   const _OutlineSoftButton({super.key, required this.icon, required this.label});
   @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: () {},
-      icon: Icon(icon),
-      label: Text(label),
-    );
-  }
+  Widget build(BuildContext context) => OutlinedButton.icon(onPressed: () {}, icon: Icon(icon), label: Text(label));
 }
-
 class _SkeletonBar extends StatelessWidget {
   final double width;
   final double height;
   const _SkeletonBar({super.key, required this.width, required this.height});
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      color: Colors.grey.shade300,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-    );
-  }
+  Widget build(BuildContext context) => Container(width: width, height: height, color: Colors.grey.shade300);
 }
-
 class _SkeletonRating extends StatelessWidget {
   const _SkeletonRating({super.key});
   @override
-  Widget build(BuildContext context) {
-    return Row(children: List.generate(5, (i) => Icon(Icons.star, color: Colors.grey.shade300)));
-  }
+  Widget build(BuildContext context) => Row(children: List.generate(5, (i) => Icon(Icons.star, color: Colors.grey.shade300)));
 }
-
 class _SkeletonChip extends StatelessWidget {
   const _SkeletonChip({super.key});
   @override
-  Widget build(BuildContext context) {
-    return Chip(label: Text('...'), backgroundColor: Colors.grey.shade300);
-  }
+  Widget build(BuildContext context) => Chip(label: Container(width: 40, height: 12, color: Colors.grey.shade300));
 }
-
-class _EmptyPortfolioCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EmptyPortfolioCard({super.key, required this.onTap});
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool share;
+  const _ActionChip({super.key, required this.icon, required this.label, this.share = false});
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.add)),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ActionChip(label: Text(label), avatar: Icon(icon));
 }
-
 class _LargeAddProjectButton extends StatelessWidget {
   final VoidCallback onTap;
   const _LargeAddProjectButton({super.key, required this.onTap});
   @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onTap,
-      child: const Text('Add Project'),
-    );
-  }
+  Widget build(BuildContext context) => ElevatedButton.icon(onPressed: onTap, icon: Icon(Icons.add), label: Text('Add Project'));
 }
-
+class _EmptyPortfolioCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EmptyPortfolioCard({super.key, required this.onTap});
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 160,
+    child: Card(child: InkWell(onTap: onTap, child: SizedBox(width: 100, height: 80, child: Center(child: Icon(Icons.add))))),
+  );
+}
+class _RecCard extends StatelessWidget {
+  final String title;
+  final String budget;
+  final List<String> tags;
+  const _RecCard({super.key, required this.title, required this.budget, required this.tags});
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 250,
+    child: Card(child: ListTile(title: Text(title), subtitle: Text(budget))),
+  );
+}
 class _ContractTile extends StatelessWidget {
   final String client;
   final String role;
@@ -999,57 +978,16 @@ class _ContractTile extends StatelessWidget {
   final String due;
   const _ContractTile({super.key, required this.client, required this.role, required this.progress, required this.due});
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(role),
-      subtitle: Text(client),
-      trailing: Text(due),
-    );
-  }
+  Widget build(BuildContext context) => SizedBox(
+    width: 250,
+    child: ListTile(title: Text(role), subtitle: Text(client)),
+  );
 }
-
-class _RecCard extends StatelessWidget {
-  final String title;
-  final String budget;
-  final List<String> tags;
-  const _RecCard({super.key, required this.title, required this.budget, required this.tags});
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(budget),
-      ),
-    );
-  }
-}
-
-class _ActionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool share;
-  const _ActionChip({super.key, required this.icon, required this.label, this.share = false});
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: Icon(icon),
-      label: Text(label),
-      onPressed: () {},
-    );
-  }
-}
-
 class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   const _ContactRow({super.key, required this.icon, required this.label, required this.value});
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      subtitle: Text(value),
-    );
-  }
+  Widget build(BuildContext context) => Row(children: [Icon(icon), SizedBox(width: 8), Text('$label: $value')]);
 }
