@@ -29,14 +29,23 @@ class FreelancerHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final int newGigsCount = 2; // TODO: Replace with actual logic for new gigs
     return Scaffold(
       extendBodyBehindAppBar: true,
-      floatingActionButton: _AddPortfolioFab(),
+      floatingActionButton: isMobile
+          ? _ApplyForWorkFab(newCount: newGigsCount)
+          : null,
       appBar: AppBar(
         title: const Text('Freelancer Home'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          if (!isMobile)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              child: _ApplyForWorkButton(newCount: newGigsCount),
+            ),
           Stack(
             children: [
               IconButton(
@@ -293,8 +302,6 @@ class _HeaderHero extends StatelessWidget {
                       color: _kHeading,
                     ),
               ),
-              _FindWorkCta(newCount: 2),
-              const _ApplyGigsCta(),
             ],
           ),
         ),
@@ -518,7 +525,6 @@ class _ProfileOverview extends StatelessWidget {
                           const _GlowingAvatar(loading:false),
                           const SizedBox(width:20),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: headerInfoChildren)),
-                          const _FindWorkCta(newCount: 0),
                         ],
                       ),
                       const SizedBox(height:18),
@@ -681,14 +687,13 @@ class _QuickActions extends StatelessWidget {
       child: GlassCard(
         child: Wrap(
           spacing: 12,
-            runSpacing: 12,
-            children: const [
-              _ActionChip(icon: Icons.search, label: 'Find gigs'),
-              _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
-              _ActionChip(icon: Icons.schedule, label: 'Availability'),
-              _ActionChip(icon: Icons.account_balance_wallet_outlined, label: 'Withdraw'),
-              _ActionChip(icon: Icons.ios_share_outlined, label: 'Share card', share: true),
-            ],
+          runSpacing: 12,
+          children: const [
+            _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
+            _ActionChip(icon: Icons.schedule, label: 'Availability'),
+            _ActionChip(icon: Icons.account_balance_wallet_outlined, label: 'Withdraw'),
+            _ActionChip(icon: Icons.ios_share_outlined, label: 'Share card', share: true),
+          ],
         ),
       ),
     );
@@ -815,238 +820,236 @@ class _AddPortfolioFab extends StatelessWidget {
   }
 }
 
+// --- New Apply for Work Button (Header) ---
+class _ApplyForWorkButton extends StatelessWidget {
+  final int newCount;
+  const _ApplyForWorkButton({Key? key, required this.newCount}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          onPressed: () {
+            // TODO: Implement navigation to work/gigs page
+          },
+          child: const Text('Apply for Work'),
+        ),
+        if (newCount > 0)
+          Positioned(
+            right: 8,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$newCount new',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// --- New FAB for Mobile ---
+class _ApplyForWorkFab extends StatelessWidget {
+  final int newCount;
+  const _ApplyForWorkFab({Key? key, required this.newCount}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        FloatingActionButton.extended(
+          onPressed: () {
+            // TODO: Implement navigation to work/gigs page
+          },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          label: const Text('Apply for Work', style: TextStyle(fontWeight: FontWeight.bold)),
+          icon: const Icon(Icons.work_outline),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+        ),
+        if (newCount > 0)
+          Positioned(
+            right: 8,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$newCount new',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// --- PLACEHOLDER WIDGETS TO FIX COMPILATION ---
 class _GradientButton extends StatelessWidget {
-  final IconData icon; final String label; final VoidCallback? onTap;
-  const _GradientButton({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  const _GradientButton({super.key, required this.icon, required this.label});
   @override
-  Widget build(BuildContext context){
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap ?? (){},
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors:[_kTeal,_kIndigo]),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [BoxShadow(color: Color(0x3300C2A8), blurRadius:20, offset: Offset(0,8))],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal:16, vertical:12),
-            child: Row(children:[
-              Icon(icon, color:Colors.white,size:18),
-              const SizedBox(width:8),
-              Text(label, style: const TextStyle(color:Colors.white,fontWeight:FontWeight.w600)),
-            ]),
-          ),
-        ),
-      ),
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () {},
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }
 
-// Soft outline button used in header actions
 class _OutlineSoftButton extends StatelessWidget {
-  final IconData icon; final String label; final VoidCallback? onTap;
-  const _OutlineSoftButton({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  const _OutlineSoftButton({super.key, required this.icon, required this.label});
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap ?? (){},
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal:16, vertical:12),
-          decoration: BoxDecoration(
-            color: cs.surface.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cs.outline.withValues(alpha: 0.40)),
-            boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0,4))],
-          ),
-          child: Row(children:[
-            Icon(icon, size:18, color: _kIndigo),
-            const SizedBox(width:8),
-            Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: _kHeading)),
-          ]),
-        ),
-      ),
+    return OutlinedButton.icon(
+      onPressed: () {},
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }
 
-// Contact row (icon + label + value)
-class _ContactRow extends StatelessWidget {
-  final IconData icon; final String label; final String value;
-  const _ContactRow({required this.icon, required this.label, required this.value});
+class _SkeletonBar extends StatelessWidget {
+  final double width;
+  final double height;
+  const _SkeletonBar({super.key, required this.width, required this.height});
   @override
   Widget build(BuildContext context) {
-    return Row(children:[
-      Icon(icon, size:18, color:_kIndigo), const SizedBox(width:8),
-      Text('$label: ', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:_kBody,fontWeight:FontWeight.w600)),
-      Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:_kMuted), overflow: TextOverflow.ellipsis))
-    ]);
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade300,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+    );
   }
 }
 
-// Portfolio item preview (in portfolio section)
-class _PortfolioItem extends StatelessWidget {
-  final int index; const _PortfolioItem({required this.index});
+class _SkeletonRating extends StatelessWidget {
+  const _SkeletonRating({super.key});
   @override
   Widget build(BuildContext context) {
-    return HoverScale(child: AspectRatio(aspectRatio:4/3, child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha:0.30)),
-        gradient: const LinearGradient(colors:[_kIndigo,_kViolet], begin: Alignment.topLeft, end: Alignment.bottomRight),
-      ),
-      child: Stack(children:[
-        Positioned.fill(child: Opacity(opacity:0.10, child: Icon(Icons.image_outlined, size:64, color:Colors.white))),
-        Align(alignment: Alignment.bottomLeft, child: Padding(padding: const EdgeInsets.all(10), child: Text('Project ${index+1}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:Colors.white,fontWeight:FontWeight.w600))))
-      ]),
-    )));
+    return Row(children: List.generate(5, (i) => Icon(Icons.star, color: Colors.grey.shade300)));
   }
 }
 
-// Large button to add new project (in portfolio section)
-class _LargeAddProjectButton extends StatelessWidget {
-  final VoidCallback onTap; const _LargeAddProjectButton({required this.onTap});
+class _SkeletonChip extends StatelessWidget {
+  const _SkeletonChip({super.key});
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(onTap:onTap, child: DecoratedBox(
-      decoration: BoxDecoration(gradient: const LinearGradient(colors:[_kTeal,_kIndigo]), borderRadius: BorderRadius.circular(30), boxShadow: const [BoxShadow(color: Color(0x3300C2A8), blurRadius:20, offset: Offset(0,8))]),
-      child: Padding(padding: const EdgeInsets.symmetric(horizontal:18, vertical:10), child: Row(mainAxisSize: MainAxisSize.min, children:[const Icon(Icons.add,color:Colors.white), const SizedBox(width:6), Text('Add Project', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600))])),
-    )));
+    return Chip(label: Text('...'), backgroundColor: Colors.grey.shade300);
   }
 }
 
-// Placeholder card in portfolio section
 class _EmptyPortfolioCard extends StatelessWidget {
-  final VoidCallback onTap; const _EmptyPortfolioCard({required this.onTap});
+  final VoidCallback onTap;
+  const _EmptyPortfolioCard({super.key, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return InkWell(onTap:onTap, borderRadius: BorderRadius.circular(18), child: Ink(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: _kIndigo.withValues(alpha:0.25)), color: _kIndigo.withValues(alpha:0.05)),
-      child: Center(child: Column(mainAxisSize: MainAxisSize.min, children:[ const Icon(Icons.add_photo_alternate_outlined, color:_kIndigo,size:32), const SizedBox(height:8), Text('Add Project', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:_kIndigo,fontWeight:FontWeight.w600)) ])),
-    ));
-  }
-}
-
-// Contract tile (in active contracts section)
-class _ContractTile extends StatelessWidget {
-  final String client; final String role; final double progress; final String due;
-  const _ContractTile({required this.client, required this.role, required this.progress, required this.due});
-  @override
-  Widget build(BuildContext context) {
-    return Row(children:[
-      const CircleAvatar(radius:20, child: Icon(Icons.business_outlined)), const SizedBox(width:12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-        Text(role, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight:FontWeight.w600)),
-        Text(client, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height:6), LinearProgressIndicator(value:progress), const SizedBox(height:4),
-        Text(due, style: Theme.of(context).textTheme.bodySmall)
-      ]))
-    ]);
-  }
-}
-
-// Recommendation card (in recommendations section)
-class _RecCard extends StatelessWidget {
-  final String title; final String budget; final List<String> tags; const _RecCard({required this.title, required this.budget, required this.tags});
-  @override
-  Widget build(BuildContext context) {
-    return HoverScale(
-      child: GlassCard(
-        borderRadius:16,
-        padding: const EdgeInsets.all(14),
-        child: SizedBox(
-          width:220,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children:[
-              Text(title, maxLines:2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height:6),
-              Text(budget, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height:6),
-              Wrap(spacing:6, runSpacing:6, children: tags.map((t)=>Chip(label: Text(t))).toList()),
-              const Spacer(),
-              Align(alignment: Alignment.bottomRight, child: ElevatedButton(onPressed: (){}, child: const Text('View'))),
-            ],
-          ),
-        ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: Colors.grey.shade200,
+        child: const Center(child: Icon(Icons.add)),
       ),
     );
   }
 }
 
-// Visiting card share helper + action chip (missing earlier)
-void _openVisitingCard(BuildContext context) {
-  final user = SessionService.instance.user;
-  final name = user?.email.split('@').first ?? 'freelancer';
-  final shareText = 'Check out my freelance profile: $name';
-  Share.share(shareText, subject: 'Freelance Profile');
-  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile link shared')));
+class _LargeAddProjectButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _LargeAddProjectButton({super.key, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onTap,
+      child: const Text('Add Project'),
+    );
+  }
+}
+
+class _ContractTile extends StatelessWidget {
+  final String client;
+  final String role;
+  final double progress;
+  final String due;
+  const _ContractTile({super.key, required this.client, required this.role, required this.progress, required this.due});
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(role),
+      subtitle: Text(client),
+      trailing: Text(due),
+    );
+  }
+}
+
+class _RecCard extends StatelessWidget {
+  final String title;
+  final String budget;
+  final List<String> tags;
+  const _RecCard({super.key, required this.title, required this.budget, required this.tags});
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(title),
+        subtitle: Text(budget),
+      ),
+    );
+  }
 }
 
 class _ActionChip extends StatelessWidget {
-  final IconData icon; final String label; final bool share;
-  const _ActionChip({required this.icon, required this.label, this.share=false});
+  final IconData icon;
+  final String label;
+  final bool share;
+  const _ActionChip({super.key, required this.icon, required this.label, this.share = false});
   @override
   Widget build(BuildContext context) {
-    return HoverScale(
-      child: InkWell(
-        onTap: () { if (share) _openVisitingCard(context); },
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal:16, vertical:12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors:[_kTeal,_kIndigo]),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Color(0x3300C2A8), blurRadius:18, offset: Offset(0,6))],
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children:[
-              Icon(icon, color:Colors.white,size:20), const SizedBox(width:8),
-              Text(label, style: const TextStyle(color:Colors.white,fontWeight:FontWeight.w600))
-            ])
-        ),
-      ),
+    return ActionChip(
+      avatar: Icon(icon),
+      label: Text(label),
+      onPressed: () {},
     );
   }
 }
 
-// Skeleton widgets
-class _SkeletonBar extends StatefulWidget { final double width; final double height; const _SkeletonBar({required this.width, required this.height}); @override State<_SkeletonBar> createState()=>_SkeletonBarState(); }
-class _SkeletonBarState extends State<_SkeletonBar> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl;
-  @override void initState(){ super.initState(); _ctl=AnimationController(vsync:this, duration: const Duration(milliseconds:1100))..repeat(); }
-  @override void dispose(){ _ctl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context){
-    final isDark=_isDark(context);
-    return AnimatedBuilder(
-      animation:_ctl,
-      builder: (_,__) {
-        final shimmer = LinearGradient(
-          colors:[
-            Colors.white.withValues(alpha:isDark?0.07:0.40),
-            Colors.white.withValues(alpha:0.05),
-            Colors.white.withValues(alpha:isDark?0.07:0.40)
-          ],
-          stops: const [0,0.5,1],
-          begin: Alignment(-1+2*_ctl.value,0),
-          end: const Alignment(1,0),
-        );
-        return Container(
-          width: widget.width,
-            height: widget.height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: shimmer,
-            ),
-        );
-      },
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _ContactRow({super.key, required this.icon, required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(value),
     );
   }
 }
-class _SkeletonChip extends StatelessWidget { const _SkeletonChip(); @override Widget build(BuildContext context){ final isDark=_isDark(context); return Container(width:90, height:34, decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), color: Colors.white.withValues(alpha:isDark?0.10:0.35))); }}
-class _SkeletonRating extends StatelessWidget {
-  const _SkeletonRating();
-  @override Widget build(BuildContext context){ final isDark=_isDark(context); return Row(children: List.generate(5, (i)=> Padding(padding: const EdgeInsets.only(right:4), child: Icon(Icons.star, size:20, color: Colors.white.withValues(alpha:isDark?0.15:0.30))))); }}
