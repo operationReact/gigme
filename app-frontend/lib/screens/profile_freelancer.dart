@@ -388,7 +388,7 @@ class _PortfolioTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     if (_isImage) {
       return Container(
-        color: cs.secondary.withOpacity(0.08),
+        color: cs.secondary.withValues(alpha: 0.08),
         child: Image.network(
           item.url,
           fit: BoxFit.cover,
@@ -399,7 +399,7 @@ class _PortfolioTile extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Container(color: cs.secondary.withOpacity(0.08)),
+          Container(color: cs.secondary.withValues(alpha: 0.08)),
           const Center(child: Icon(Icons.videocam_outlined, size: 40)),
         ],
       );
@@ -417,7 +417,7 @@ class _IconPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      color: cs.secondary.withOpacity(0.08),
+      color: cs.secondary.withValues(alpha: 0.08),
       child: Icon(icon, size: 40, color: cs.primary),
     );
   }
@@ -432,16 +432,23 @@ class _GlassCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
-              color: Colors.white.withValues(alpha: 0.07),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0,12), spreadRadius: -8)],
-            ),
-            child: child,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            color: Colors.white.withAlpha((0.15 * 255).toInt()),
+            border: Border.all(color: Colors.white.withAlpha((0.4 * 255).toInt()), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha((0.10 * 255).toInt()),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );
