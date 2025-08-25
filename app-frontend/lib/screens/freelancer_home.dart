@@ -1,15 +1,9 @@
 import 'dart:ui' as ui;
 import 'dart:math' as math;
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/session_service.dart';
 import '../api/home_api.dart';
-
-// Cover image (network) for profile header banner
-const _kCoverImageUrl = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1350&q=80';
-// Optional local asset override (put your image at assets/images/cover_banner.jpg and declare in pubspec)
-const _kCoverImageAsset = 'assets/images/cover_banner.jpg';
 
 // Brand palette constants
 const _kTeal = Color(0xFF00C2A8);
@@ -318,74 +312,87 @@ class _HeaderHero extends StatelessWidget {
   }
 }
 
-class _FindWorkCta extends StatelessWidget {
+// --- New Apply for Work Button (Header) ---
+class _ApplyForWorkButton extends StatelessWidget {
   final int newCount;
-  const _FindWorkCta({Key? key, required this.newCount}) : super(key: key);
+  const _ApplyForWorkButton({Key? key, required this.newCount}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            ),
-            icon: const Icon(Icons.search),
-            label: const Text('Find Work'),
-            onPressed: () {
-              // TODO: Implement navigation to find work/jobs page
-            },
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          if (newCount > 0)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          onPressed: () {
+            // TODO: Implement navigation to work/gigs page
+          },
+          child: const Text('Apply for Work'),
+        ),
+        if (newCount > 0)
+          Positioned(
+            right: 8,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.redAccent,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '+$newCount new',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                '$newCount new',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
 
-class _ApplyGigsCta extends StatelessWidget {
-  const _ApplyGigsCta();
+// --- New FAB for Mobile ---
+class _ApplyForWorkFab extends StatelessWidget {
+  final int newCount;
+  const _ApplyForWorkFab({Key? key, required this.newCount}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final grad = LinearGradient(colors: isDark ? const [_kTeal,_kViolet] : const [_kTeal, _kViolet]);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () {},
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: grad,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [BoxShadow(color: Color(0x3300C2A8), blurRadius: 24, offset: Offset(0, 8))],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.work_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text('Apply for Gigs', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-            ]),
-          ),
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        FloatingActionButton.extended(
+          onPressed: () {
+            // TODO: Implement navigation to work/gigs page
+          },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          label: const Text('Apply for Work', style: TextStyle(fontWeight: FontWeight.bold)),
+          icon: const Icon(Icons.work_outline),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
         ),
-      ),
+        if (newCount > 0)
+          Positioned(
+            right: 8,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$newCount new',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -590,9 +597,9 @@ class _StatsAndProgress extends StatelessWidget { const _StatsAndProgress(); @ov
     return HoverScale(child: GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text('Performance Overview', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w700,color:_kHeading)), const SizedBox(height:16), content ]))); }
 }
 class _GlowingAvatar extends StatelessWidget { final bool loading; const _GlowingAvatar({required this.loading}); @override Widget build(BuildContext context){ return Stack(alignment: Alignment.center, children:[ AnimatedContainer(duration: const Duration(milliseconds:600), width:120, height:120, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: SweepGradient(colors: [_kTeal,_kIndigo,_kViolet,_kTeal], stops: [0,.33,.66,1]), boxShadow:[BoxShadow(color: Color(0x3300C2A8), blurRadius:30, offset: Offset(0,8))])), Container(width:108,height:108, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width:4), color: _kTeal.withValues(alpha:.15)), child: loading? const Center(child: CircularProgressIndicator(strokeWidth:3)) : const Icon(Icons.person, size:48, color: Colors.white)) ]); }}
-class _ProfileBannerPattern extends CustomPainter { @override void paint(Canvas canvas, Size size){ final paint = Paint()..style=PaintingStyle.stroke..color=Colors.white.withValues(alpha:0.25)..strokeWidth=1.1; for(double y=0; y<size.height; y+=32){ final path = Path(); for(double x=0; x<=size.width; x+=28){ final dy = math.sin((x+y)/54)*7; if(x==0) path.moveTo(x,y+dy); else path.lineTo(x,y+dy); } canvas.drawPath(path, paint); } } @override bool shouldRepaint(covariant CustomPainter oldDelegate)=>false; }
 class _AnimatedStarRating extends StatefulWidget { final double rating; const _AnimatedStarRating({required this.rating}); @override State<_AnimatedStarRating> createState()=>_AnimatedStarRatingState(); }
 class _AnimatedStarRatingState extends State<_AnimatedStarRating> with SingleTickerProviderStateMixin { late final AnimationController _c; @override void initState(){ super.initState(); _c=AnimationController(vsync:this,duration: const Duration(milliseconds:800))..forward(); } @override void dispose(){ _c.dispose(); super.dispose(); } @override Widget build(BuildContext context){ final full = widget.rating.floor(); final half = (widget.rating-full)>=0.25 && (widget.rating-full)<0.75; return Row(children: List.generate(5, (i){ IconData ic; if(i<full) ic=Icons.star; else if(i==full && half) ic=Icons.star_half; else ic=Icons.star_outline; return ScaleTransition(scale: CurvedAnimation(parent:_c, curve: Interval(i/5,1, curve: Curves.easeOutBack)), child: Icon(ic, color: Colors.amber, size:22)); })); }}
+
 // Animated stat tile
 class _AnimatedStat extends StatefulWidget { final IconData icon; final String label; final int value; final String? suffix; final String? prefix; final bool currency; final Color tint; const _AnimatedStat({required this.icon, required this.label, required this.value, this.suffix, this.prefix, this.currency=false, required this.tint}); @override State<_AnimatedStat> createState()=>_AnimatedStatState(); }
 class _AnimatedStatState extends State<_AnimatedStat> with SingleTickerProviderStateMixin { late final AnimationController _ctl; late final Animation<double> _anim; @override void initState(){ super.initState(); _ctl=AnimationController(vsync:this,duration: const Duration(milliseconds:1100)); _anim=CurvedAnimation(parent:_ctl, curve: Curves.easeOutCubic); _ctl.forward(); } @override void dispose(){ _ctl.dispose(); super.dispose(); } String _format(int v){ if(widget.currency){ if(v>=1000){ return '\$'+(v/1000).toStringAsFixed(1)+'k'; } return '\$'+v.toString(); } return v.toString(); } @override Widget build(BuildContext context){ final isDark=_isDark(context); return AnimatedBuilder(animation:_anim, builder:(ctx,_) { final val=(widget.value*_anim.value).clamp(0, widget.value).round(); return Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: widget.tint.withValues(alpha:isDark?0.22:0.08), border: Border.all(color: Colors.white.withValues(alpha:isDark?0.18:0.38))), child: Row(children:[ Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors:[widget.tint, widget.tint.withValues(alpha:0.4)])), child: Icon(widget.icon, color: Colors.white, size:22)), const SizedBox(width:14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text('${widget.prefix??''}${_format(val)}${widget.suffix??''}', style: Theme.of(context).textTheme.titleLarge?.copyWith(color:_kHeading, fontWeight: FontWeight.w700)), const SizedBox(height:4), Text(widget.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:_kMuted, fontWeight: FontWeight.w500)), const SizedBox(height:6), LinearProgressIndicator(value: (val/widget.value).clamp(0,1), minHeight:4, backgroundColor: widget.tint.withValues(alpha:0.15), valueColor: AlwaysStoppedAnimation(widget.tint)) ])) ])); }); }
@@ -816,91 +823,6 @@ class _AddPortfolioFab extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// --- New Apply for Work Button (Header) ---
-class _ApplyForWorkButton extends StatelessWidget {
-  final int newCount;
-  const _ApplyForWorkButton({Key? key, required this.newCount}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.centerRight,
-      children: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          onPressed: () {
-            // TODO: Implement navigation to work/gigs page
-          },
-          child: const Text('Apply for Work'),
-        ),
-        if (newCount > 0)
-          Positioned(
-            right: 8,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$newCount new',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// --- New FAB for Mobile ---
-class _ApplyForWorkFab extends StatelessWidget {
-  final int newCount;
-  const _ApplyForWorkFab({Key? key, required this.newCount}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.topRight,
-      children: [
-        FloatingActionButton.extended(
-          onPressed: () {
-            // TODO: Implement navigation to work/gigs page
-          },
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-          label: const Text('Apply for Work', style: TextStyle(fontWeight: FontWeight.bold)),
-          icon: const Icon(Icons.work_outline),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        ),
-        if (newCount > 0)
-          Positioned(
-            right: 8,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$newCount new',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
