@@ -394,3 +394,419 @@ ou were being routed to /#/profile/freelancer (ProfileFreelancerPage), which is 
 
 
 
+===============================================================
+
+Got it—let’s skip the flaky zips and give you **exact, copy-pasteable patches + files** so you can apply the changes locally and be 100% sure they’re in. This covers **backend + frontend**, adds the **new gigs count** endpoint, wires it into a **reusable Apply-for-Work CTA** with an animated badge, and replaces the ad-hoc button on the home screen.
+
+---
+
+# 1) Apply this patch (backend + frontend)
+
+Save the block below as `gigme.patch` at the repo root, then run:
+
+```bash
+git checkout -b feat/apply-work-cta
+git apply --whitespace=fix gigme.patch
+```
+
+### `gigme.patch`
+
+```diff
+*** Begin Patch
+*** Update File: app-backend/src/main/java/com/gigmework/backend/service/JobService.java
+@@
+ package com.gigmework.backend.service;
+
+ import com.gigmework.backend.domain.Job;
++import com.gigmework.backend.domain.JobStatus;
+ import com.gigmework.backend.domain.UserAccount;
+ import com.gigmework.backend.domain.UserRole;
+ import com.gigmework.backend.repo.JobRepository;
+ import com.gigmework.backend.repo.UserRepository;
+@@
+         return jobRepo.save(job);
+     }
++
++    /**
++     * Count jobs that are open/unassigned (available for freelancers).
++     */
++    public long countNewJobs() {
++        return jobRepo.findAll().stream()
++                .filter(j -> j.getAssignedFreelancer() == null)
++                .filter(j -> j.getStatus() == null || j.getStatus() == JobStatus.OPEN)
++                .count();
++    }
+ }
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Update File: app-backend/src/main/java/com/gigmework/backend/web/JobController.java
+@@
+ package com.gigmework.backend.web;
+
+ import com.gigmework.backend.domain.Job;
+ import com.gigmework.backend.service.JobService;
+ import org.springframework.http.HttpStatus;
+ import org.springframework.http.ResponseEntity;
+ import org.springframework.web.bind.annotation.*;
+
++import java.util.Map;
++
+ @RestController
+ @RequestMapping("/api/jobs")
+ public class JobController {
+     private final JobService jobService;
+@@
+         return jobs.list().stream().map(JobDto::of).toList();
+     }
++
++    @GetMapping("/new/count")
++    public ResponseEntity<Map<String, Integer>> newCount() {
++        long c = jobService.countNewJobs();
++        return ResponseEntity.ok(Map.of("count", (int) c));
++    }
+ }
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Update File: app-frontend/lib/job_service.dart
+@@
+ import 'dart:convert';
+ import 'package:http/http.dart' as http;
+
+ class JobService {
+   final String baseUrl;
+   JobService({this.baseUrl = 'http://localhost:8081'}); // adjust if different
+
+@@
+   Future<Job> createJob(String title, {String? description}) async {
+@@
+     return Job.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+   }
++
++  /// Number of new/unassigned jobs available for freelancers.
++  Future<int> countNewJobs() async {
++    final url = Uri.parse('$baseUrl/api/jobs/new/count');
++    final res = await http.get(url);
++    if (res.statusCode != 200) {
++      throw Exception('Failed to load new jobs count ${res.statusCode}');
++    }
++    try {
++      final decoded = jsonDecode(res.body);
++      if (decoded is Map && decoded['count'] != null) {
++        return (decoded['count'] as num).toInt();
++      }
++      return int.parse(res.body.toString());
++    } catch (_) {
++      // If backend returns raw int or JSON, this covers both paths.
++      return 0;
++    }
++  }
+ }
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Add File: app-frontend/lib/widgets/apply_for_work_cta.dart
++import 'package:flutter/material.dart';
++import '../job_service.dart';
++
++/// Premium, reusable Apply-for-Work CTA with animated badge and FAB variant.
++class ApplyForWorkCta extends StatelessWidget {
++  final int? initialCount;
++  final VoidCallback? onPressed;
++  final bool dense;
++  final bool showLabel;
++  final JobService jobService;
++
++  const ApplyForWorkCta({
++    super.key,
++    this.initialCount,
++    this.onPressed,
++    this.dense = false,
++    this.showLabel = true,
++    this.jobService = const JobService(), // default baseUrl
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final bg = theme.colorScheme.primary.withOpacity(0.94);
++    final fg = theme.colorScheme.onPrimary;
++    final label = showLabel ? const Text('Apply for Work') : const SizedBox.shrink();
++
++    return FutureBuilder<int>(
++      future: jobService.countNewJobs(),
++      initialData: initialCount ?? 0,
++      builder: (ctx, snap) {
++        final count = (snap.data ?? 0).clamp(0, 999);
++        return Stack(
++          clipBehavior: Clip.none,
++          children: [
++            ElevatedButton.icon(
++              style: ElevatedButton.styleFrom(
++                backgroundColor: bg,
++                foregroundColor: fg,
++                shape: const StadiumBorder(),
++                elevation: 3,
++                padding: EdgeInsets.symmetric(
++                  horizontal: dense ? 14 : 18,
++                  vertical: dense ? 10 : 14,
++                ),
++              ),
++              onPressed: onPressed,
++              icon: const Icon(Icons.work_outline),
++              label: label,
++            ),
++            Positioned(
++              top: -6,
++              right: -6,
++              child: AnimatedSwitcher(
++                duration: const Duration(milliseconds: 220),
++                transitionBuilder: (c, anim) =>
++                    ScaleTransition(scale: anim, child: c),
++                child: count > 0
++                    ? _Badge(
++                        key: ValueKey(count),
++                        text: count > 99 ? '99+' : '$count',
++                        bg: theme.colorScheme.onPrimary.withOpacity(0.92),
++                        fg: theme.colorScheme.primary,
++                      )
++                    : const SizedBox.shrink(),
++              ),
++            ),
++          ],
++        );
++      },
++    );
++  }
++}
++
++class ApplyForWorkFab extends StatelessWidget {
++  final int? initialCount;
++  final VoidCallback? onPressed;
++  final JobService jobService;
++  const ApplyForWorkFab({
++    super.key,
++    this.initialCount,
++    this.onPressed,
++    this.jobService = const JobService(),
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    return FutureBuilder<int>(
++      future: jobService.countNewJobs(),
++      initialData: initialCount ?? 0,
++      builder: (ctx, snap) {
++        final count = (snap.data ?? 0).clamp(0, 999);
++        return Stack(
++          clipBehavior: Clip.none,
++          children: [
++            FloatingActionButton.extended(
++              onPressed: onPressed,
++              icon: const Icon(Icons.work_outline),
++              label: const Text('Apply'),
++            ),
++            if (count > 0)
++              Positioned(
++                right: -4,
++                top: -4,
++                child: _Badge(
++                  text: count > 99 ? '99+' : '$count',
++                  bg: Theme.of(context)
++                      .colorScheme
++                      .onPrimaryContainer
++                      .withOpacity(0.95),
++                  fg: Theme.of(context).colorScheme.primary,
++                ),
++              ),
++          ],
++        );
++      },
++    );
++  }
++}
++
++class _Badge extends StatelessWidget {
++  final String text;
++  final Color bg;
++  final Color fg;
++  const _Badge({super.key, required this.text, required this.bg, required this.fg});
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
++      decoration: BoxDecoration(
++        color: bg,
++        borderRadius: BorderRadius.circular(999),
++        border: Border.all(color: fg.withOpacity(0.18)),
++      ),
++      child: Text(
++        text,
++        style: TextStyle(
++          color: fg,
++          fontSize: 11,
++          fontWeight: FontWeight.w700,
++        ),
++      ),
++    );
++  }
++}
+*** End Patch
+```
+
+```diff
+*** Begin Patch
+*** Update File: app-frontend/lib/screens/freelancer_home.dart
+@@
+-import 'dart:math' as math;
++import 'dart:math' as math;
++import '../widgets/apply_for_work_cta.dart';
+@@
+-    final isMobile = constraints.maxWidth < 900;
+-    final int newGigsCount = 2; // TODO: Replace with actual logic for new gigs
++    final isMobile = constraints.maxWidth < 900;
+@@
+-      floatingActionButton: isMobile
+-          ? _ApplyForWorkFab(
+-              newCount: newGigsCount,
+-              onPressed: () {
+-                // TODO: navigate to browse gigs
+-              },
+-            )
+-          : null,
++      floatingActionButton: isMobile
++          ? ApplyForWorkFab(
++              onPressed: () {
++                // TODO: route to browse gigs page/screen
++                // Navigator.of(context).pushNamed('/gigs/browse');
++              },
++            )
++          : null,
+@@
+-                    // Top-right CTA
+-                    Align(
+-                      alignment: Alignment.topRight,
+-                      child: _ApplyForWorkButton(
+-                        newCount: newGigsCount,
+-                      ),
+-                    ),
++                    // Top-right CTA (desktop/tablet)
++                    Align(
++                      alignment: Alignment.topRight,
++                      child: ApplyForWorkCta(
++                        onPressed: () {
++                          // TODO: route to browse gigs page/screen
++                          // Navigator.of(context).pushNamed('/gigs/browse');
++                        },
++                        dense: false,
++                        showLabel: true,
++                      ),
++                    ),
+*** End Patch
+```
+
+> If your file differs around those lines, just import the widget and drop the `ApplyForWorkCta` where the old button was, and `ApplyForWorkFab` where the old FAB was.
+
+---
+
+# 2) Build & verify
+
+**Backend**
+
+```bash
+cd app-backend
+./gradlew bootRun
+# Verify endpoint
+curl http://localhost:8081/api/jobs/new/count
+# -> {"count":0}  (or another int)
+```
+
+**Frontend**
+
+```bash
+cd app-frontend
+flutter pub get
+flutter run
+```
+
+You should now see:
+
+* A single **Apply for Work** pill in the top-right with an **animated badge**.
+* A **FAB** version on mobile widths.
+* The badge count will reflect `/api/jobs/new/count`.
+
+---
+
+# 3) Quick sanity checks
+
+```bash
+# In repo root
+grep -R "countNewJobs" -n app-backend | cat
+grep -R "ApplyForWorkCta" -n app-frontend | cat
+grep -R "/api/jobs/new/count" -n
+```
+
+---
+
+# 4) Your Copilot prompt (backend-aware version)
+
+Use this exact prompt in Copilot to regenerate or extend:
+
+> **Copilot, do this: Enhance the “Apply for Work / Apply for gigs” CTA**
+>
+> **Context**
+>
+> * Repo: `operationReact/gigme`
+> * Frontend: Flutter (`app-frontend/lib/`)
+> * Backend: Spring Boot (`app-backend/src/main/java/com/gigmework/backend/…`)
+> * Current CTA is a small pill in the top-right of `freelancer_home.dart`. I want one professional, reusable CTA used everywhere.
+>
+> **Task**
+> Create a reusable widget `ApplyForWorkCta` and integrate it into the header of the freelancer home. Keep my existing color palette; just make the component richer, clearer, and more responsive. Also add a backend endpoint that returns the number of new/unassigned gigs and display that as a badge in the CTA.
+>
+> **Implementation**
+>
+> 1. **Backend**
+>
+>    * In `JobService`, add `long countNewJobs()` that counts jobs where `assignedFreelancer` is `null` and `status` is `OPEN` (null treated as OPEN).
+>    * In `JobController`, add `@GetMapping("/new/count")` that returns `{"count": <int>}`.
+> 2. **Frontend**
+>
+>    * Create `app-frontend/lib/widgets/apply_for_work_cta.dart` with:
+>
+>      ```dart
+>      class ApplyForWorkCta extends StatelessWidget {
+>        final int? initialCount;
+>        final VoidCallback? onPressed;
+>        final bool dense;
+>        final bool showLabel;
+>        const ApplyForWorkCta({super.key, this.initialCount, this.onPressed, this.dense=false, this.showLabel=true});
+>      }
+>      ```
+>    * Visuals: stadium pill, primary background \~0.94 opacity, `onPrimary` text/icon, badge on top-right using `AnimatedSwitcher`, tooltips, a11y semantics, hover/press states.
+>    * Add `ApplyForWorkFab` using `FloatingActionButton.extended` for mobile.
+>    * Extend `JobService` with `Future<int> countNewJobs()` that calls `/api/jobs/new/count` and parses either `{"count": n}` or raw `n`.
+>    * Replace old header CTA in `freelancer_home.dart` with `ApplyForWorkCta`, and mobile FAB with `ApplyForWorkFab`.
+> 3. **Responsiveness & polish**
+>
+>    * Hide text for very narrow widths (`showLabel=false`), keep badge visible.
+>    * Animations: fade/scale the badge via `AnimatedSwitcher`.
+> 4. **Acceptance**
+>
+>    * One CTA everywhere, badge reflects backend count, responsive, keeps current palette, meets 48dp target.
+>
+> **Generate the code now and wire it into `freelancer_home.dart`.**
+
+---
+
+If anything conflicts with your local code (e.g., different package structure), paste me the relevant file headers and I’ll adapt the patch precisely for your tree.
+
+
+=========================================================================

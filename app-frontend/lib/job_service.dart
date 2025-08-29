@@ -37,5 +37,44 @@ class JobService {
     }
     return Job.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
-}
 
+  Future<int> countNewJobs() async {
+    final res = await http.get(Uri.parse('$_base/api/jobs/new/count'));
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load new jobs count: \\${res.statusCode}');
+    }
+    final body = res.body.trim();
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['count'] != null) {
+        return (decoded['count'] as num).toInt();
+      }
+      if (decoded is num) {
+        return decoded.toInt();
+      }
+    } catch (_) {
+      // Not JSON, try parsing as int
+      final n = int.tryParse(body);
+      if (n != null) return n;
+    }
+    throw Exception('Unexpected response for new jobs count: $body');
+  }
+
+  Future<List<Job>> listOpenJobs() async {
+    final res = await http.get(Uri.parse('$_base/api/jobs/open'));
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load open jobs: \\${res.statusCode}');
+    }
+    final list = jsonDecode(res.body) as List<dynamic>;
+    return list.map((e) => Job.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> applyForJob(int jobId, String freelancerEmail) async {
+    final res = await http.post(
+      Uri.parse('$_base/api/jobs/$jobId/apply?freelancerEmail=$freelancerEmail'),
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to apply for job: \\${res.statusCode}');
+    }
+  }
+}

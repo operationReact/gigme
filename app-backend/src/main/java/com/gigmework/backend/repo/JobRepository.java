@@ -14,5 +14,10 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     // Open jobs for recommendations (unassigned)
     List<Job> findTop5ByStatusAndAssignedFreelancerIsNullOrderByCreatedAtDesc(JobStatus status);
 
+    // Find all open jobs (unassigned)
+    List<Job> findByStatusAndAssignedFreelancerIsNull(JobStatus status);
+
     long countByAssignedFreelancer(UserAccount freelancer);
+
+    long countByAssignedFreelancerIsNullAndStatus(JobStatus status);
 }

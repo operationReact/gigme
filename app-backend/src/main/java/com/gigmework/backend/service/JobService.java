@@ -35,5 +35,30 @@ public class JobService {
         Job job = new Job(title.trim(), description, owner.orElse(null));
         return jobRepo.save(job);
     }
-}
 
+    @Transactional(readOnly = true)
+    public long countNewJobs() {
+        return jobRepo.countByAssignedFreelancerIsNullAndStatus(com.gigmework.backend.domain.JobStatus.OPEN);
+    }
+
+    // List all open jobs (unassigned)
+    @Transactional(readOnly = true)
+    public List<Job> listOpenJobs() {
+        return jobRepo.findByStatusAndAssignedFreelancerIsNull(com.gigmework.backend.domain.JobStatus.OPEN);
+    }
+
+    // Apply for a job: assign the given freelancer and set status to ASSIGNED
+    public Job applyForJob(Long jobId, UserAccount freelancer) {
+        Job job = jobRepo.findById(jobId).orElseThrow(() -> new IllegalArgumentException("Job not found"));
+        if (job.getStatus() != com.gigmework.backend.domain.JobStatus.OPEN || job.getAssignedFreelancer() != null) {
+            throw new IllegalStateException("Job is not open for application");
+        }
+        job.assignFreelancer(freelancer);
+        return jobRepo.save(job);
+    }
+
+    // Find user by email
+    public UserAccount findUserByEmail(String email) {
+        return userRepo.findByEmailIgnoreCase(email).orElse(null);
+    }
+}

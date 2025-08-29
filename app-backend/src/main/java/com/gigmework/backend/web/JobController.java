@@ -33,6 +33,31 @@ public class JobController {
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDto.from(job));
     }
 
+    @GetMapping("/new/count")
+    public java.util.Map<String, Long> countNewJobs() {
+        long count = jobService.countNewJobs();
+        return java.util.Collections.singletonMap("count", count);
+    }
+
+    @GetMapping("/open")
+    public List<JobDto> listOpenJobs() {
+        return jobService.listOpenJobs().stream().map(JobDto::from).collect(Collectors.toList());
+    }
+
+    @PostMapping("/{jobId}/apply")
+    public ResponseEntity<JobDto> applyForJob(@PathVariable Long jobId, @RequestParam String freelancerEmail) {
+        var freelancer = jobService.findUserByEmail(freelancerEmail);
+        if (freelancer == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        try {
+            Job job = jobService.applyForJob(jobId, freelancer);
+            return ResponseEntity.ok(JobDto.from(job));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+    }
+
     public record JobCreateRequest(String title, String description) {}
 
     public record JobDto(Long id, String title, String description, String clientOwnerEmail, String assignedFreelancerEmail, long budgetCents, String status) {
