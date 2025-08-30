@@ -16,6 +16,13 @@ class AuthUser {
     hasFreelancerProfile: j['hasFreelancerProfile'] as bool? ?? false,
     hasClientProfile: j['hasClientProfile'] as bool? ?? false,
   );
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'email': email,
+    'role': role,
+    'hasFreelancerProfile': hasFreelancerProfile,
+    'hasClientProfile': hasClientProfile,
+  };
 }
 
 class AuthApi {

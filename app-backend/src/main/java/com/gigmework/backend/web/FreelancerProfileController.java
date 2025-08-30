@@ -24,18 +24,25 @@ public class FreelancerProfileController {
     @PutMapping("/{userId}/profile")
     public ResponseEntity<?> upsert(@PathVariable Long userId, @RequestBody UpsertFreelancerProfile body) {
         try {
-            FreelancerProfile fp = service.createOrUpdate(userId, body.displayName(), body.professionalTitle(), body.bio(), body.skillsCsv());
+            FreelancerProfile fp = service.createOrUpdate(userId, body.displayName(), body.professionalTitle(), body.bio(), body.skillsCsv(), body.imageUrl());
             return ResponseEntity.ok(FreelancerProfileDto.from(fp));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-    public record UpsertFreelancerProfile(String displayName, String professionalTitle, String bio, String skillsCsv) {}
-    public record FreelancerProfileDto(Long id, Long userId, String displayName, String professionalTitle, String bio, String skillsCsv) {
+    public record UpsertFreelancerProfile(String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {}
+    public record FreelancerProfileDto(Long id, Long userId, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
         static FreelancerProfileDto from(FreelancerProfile fp) {
-            return new FreelancerProfileDto(fp.getId(), fp.getUser().getId(), fp.getDisplayName(), fp.getProfessionalTitle(), fp.getBio(), fp.getSkillsCsv());
+            return new FreelancerProfileDto(
+                fp.getId(),
+                fp.getUser().getId(),
+                fp.getDisplayName(),
+                fp.getProfessionalTitle(),
+                fp.getBio(),
+                fp.getSkillsCsv(),
+                fp.getImageUrl()
+            );
         }
     }
 }
-

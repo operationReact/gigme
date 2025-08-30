@@ -26,17 +26,21 @@ public class FreelancerProfile {
     @Column(length = 1000)
     private String skillsCsv; // comma separated list
 
+    @Column(length = 500)
+    private String imageUrl;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     protected FreelancerProfile() {}
 
-    public FreelancerProfile(UserAccount user, String displayName, String professionalTitle, String bio, String skillsCsv) {
+    public FreelancerProfile(UserAccount user, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
         this.user = user;
         this.displayName = displayName;
         this.professionalTitle = professionalTitle;
         this.bio = bio;
         this.skillsCsv = skillsCsv;
+        this.imageUrl = imageUrl;
     }
 
     public Long getId() { return id; }
@@ -45,13 +49,14 @@ public class FreelancerProfile {
     public String getProfessionalTitle() { return professionalTitle; }
     public String getBio() { return bio; }
     public String getSkillsCsv() { return skillsCsv; }
+    public String getImageUrl() { return imageUrl; }
     public Instant getCreatedAt() { return createdAt; }
 
-    public void update(String displayName, String professionalTitle, String bio, String skillsCsv) {
-        if (displayName != null && !displayName.isBlank()) this.displayName = displayName;
+    public void update(String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
+        this.displayName = displayName;
         this.professionalTitle = professionalTitle;
         this.bio = bio;
         this.skillsCsv = skillsCsv;
+        this.imageUrl = imageUrl;
     }
 }
-

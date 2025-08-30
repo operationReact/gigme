@@ -4,6 +4,7 @@ import '../api/profile_api.dart';
 import '../services/session_service.dart';
 import '../main.dart';
 import '../screens/freelancer_home.dart';
+import '../widgets/profile_preview_card.dart';
 
 class FreelancerProfileScreen extends StatefulWidget {
   const FreelancerProfileScreen({super.key});
@@ -102,6 +103,15 @@ class _FreelancerProfileScreenState extends State<FreelancerProfileScreen> {
                       const SizedBox(height: 6),
                       Text('Show clients why you are the right fit.', style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70)),
                       const SizedBox(height: 28),
+                      // Profile Preview Card
+                      ProfilePreviewCard(
+                        name: _name.text.isEmpty ? 'Your Name' : _name.text,
+                        title: _title.text.isEmpty ? 'Your Title' : _title.text,
+                        bio: _bio.text.isEmpty ? 'Short bio about yourself...' : _bio.text,
+                        skills: _skills.text.isEmpty ? ['Skill 1', 'Skill 2'] : _skills.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+                        imageUrl: null, // You can add image support later
+                      ),
+                      const SizedBox(height: 32),
                       _field(_name, 'Display Name', validator: (v)=> v==null||v.trim().isEmpty? 'Required': null),
                       const SizedBox(height: 18),
                       _field(_title, 'Professional Title', hint: 'e.g. Mobile App Developer'),

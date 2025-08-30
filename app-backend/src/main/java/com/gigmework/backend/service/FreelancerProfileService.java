@@ -19,15 +19,15 @@ public class FreelancerProfileService {
         this.repo = repo; this.userRepo = userRepo;
     }
 
-    public FreelancerProfile createOrUpdate(Long userId, String displayName, String professionalTitle, String bio, String skillsCsv) {
+    public FreelancerProfile createOrUpdate(Long userId, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
         UserAccount user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("user not found"));
         Optional<FreelancerProfile> existing = repo.findByUser(user);
         if (existing.isPresent()) {
             FreelancerProfile fp = existing.get();
-            fp.update(displayName, professionalTitle, bio, skillsCsv);
+            fp.update(displayName, professionalTitle, bio, skillsCsv, imageUrl);
             return fp;
         }
-        FreelancerProfile fp = new FreelancerProfile(user, displayName, professionalTitle, bio, skillsCsv);
+        FreelancerProfile fp = new FreelancerProfile(user, displayName, professionalTitle, bio, skillsCsv, imageUrl);
         return repo.save(fp);
     }
 
@@ -36,4 +36,3 @@ public class FreelancerProfileService {
         return userRepo.findById(userId).flatMap(repo::findByUser);
     }
 }
-

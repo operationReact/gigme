@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'profile_freelancer.dart';
 import '../api/auth_api.dart';
 import '../services/session_service.dart';
+import '../services/preferences_service.dart';
 
 class RegisterFreelancerPage extends StatefulWidget {
   static const routeName = '/register/freelancer';
@@ -55,6 +56,7 @@ class _RegisterFreelancerPageState extends State<RegisterFreelancerPage> {
     try {
       final user = await authApi.register(email: _emailController.text.trim(), password: _passwordController.text, role: 'FREELANCER');
       SessionService.instance.setUser(user);
+      await PreferencesService.instance.saveUser(user);
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/freelancerProfile');
     } catch (e) {

@@ -2,10 +2,13 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import '../services/session_service.dart';
 import '../api/home_api.dart';
 import '../widgets/apply_for_work_cta.dart';
 import '../job_service.dart';
+import '../widgets/profile_preview_card.dart';
+import '../main.dart';
 
 // Brand palette constants
 const _kTeal = Color(0xFF00C2A8);
@@ -226,27 +229,60 @@ class HomeData extends InheritedWidget {
 }
 
 class FreelancerHomeLoader extends StatefulWidget { final Widget child; const FreelancerHomeLoader({super.key, required this.child}); @override State<FreelancerHomeLoader> createState()=>_FreelancerHomeLoaderState(); }
-class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>{
+class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader> with RouteAware {
   FreelancerHomeDto? _dto; bool _loading=true; bool _error=false;
   @override void initState(){ super.initState(); _load(); }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when coming back to this page
+    _load();
+  }
+
+  @override
+  void didPush() {
+    // Called when this route has been pushed
+    _load();
+  }
+
   Future<void> _load() async {
     setState(() { _loading=true; });
     final user = SessionService.instance.user;
+    print('[FreelancerHomeLoader] user: ' + (user?.toString() ?? 'null'));
     if(user==null){
       setState(() { _loading=false; _error=true; });
       return;
     }
     try {
       final dto = await HomeApi().getHome(user.id);
+      print('[FreelancerHomeLoader] Loaded dto: ' + dto.toString()); // DEBUG
       if(!mounted) return;
       setState(() { _dto=dto; _loading=false; _error=false; });
-    } catch(_){
+      print('[FreelancerHomeLoader] _dto after setState: ' + (_dto?.toString() ?? 'null'));
+    } catch(e, st){
+      print('[FreelancerHomeLoader] ERROR: ' + e.toString());
+      print(st);
       if(mounted){
         setState(() { _loading=false; _error=true; });
       }
     }
   }
-  @override Widget build(BuildContext context){ return HomeData(data:_dto, loading:_loading, error:_error, retry:_load, child: widget.child); }
+  @override Widget build(BuildContext context){
+    print('[FreelancerHomeLoader] build: _dto=' + (_dto?.toString() ?? 'null'));
+    return HomeData(data:_dto, loading:_loading, error:_error, retry:_load, child: widget.child);
+  }
 }
 
 // Animated subtle moving radial gradients / particles
@@ -672,7 +708,17 @@ class _ContactRow extends StatelessWidget {
 class _ProfileOverview extends StatelessWidget {
   const _ProfileOverview();
   @override
-  Widget build(BuildContext context) => Container(height: 80, color: Colors.grey.shade200, child: const Center(child: Text('_ProfileOverview')));
+  Widget build(BuildContext context) {
+    final dto = HomeData.of(context).data;
+    print('[ProfileOverview] dto: ' + (dto?.toString() ?? 'null')); // DEBUG
+    return ProfilePreviewCard(
+      name: dto?.displayName ?? 'Your Name',
+      title: dto?.professionalTitle ?? 'Your Title',
+      bio: dto?.bio ?? 'Welcome to your freelancer dashboard!',
+      skills: (dto?.skillsCsv?.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList() ?? ['Skill 1', 'Skill 2']),
+      imageUrl: dto?.imageUrl,
+    );
+  }
 }
 
 class HoverScale extends StatelessWidget {

@@ -67,6 +67,7 @@ class _SignInUserPageState extends State<SignInUserPage> with SingleTickerProvid
     try {
       final user = await authApi.login(email: _emailController.text.trim(), password: _passwordController.text);
       SessionService.instance.setUser(user);
+      await PreferencesService.instance.saveUser(user);
       if (!mounted) return;
       // persist remember
       await PreferencesService.instance.saveRemembered(remember: _remember, email: _remember ? _emailController.text.trim() : null, role: _remember ? 'FREELANCER' : null);

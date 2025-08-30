@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'api/auth_api.dart';
 import 'screens/sign_in_user.dart';
 import 'screens/sign_in_client.dart';
 import 'screens/profile_user.dart';
@@ -14,6 +16,9 @@ import 'screens/client_profile_screen.dart';
 import 'screens/forgot_password.dart';
 import 'widgets/background_video_single.dart';
 import 'services/preferences_service.dart';
+import 'services/session_service.dart';
+
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
 void main() {
   runApp(const MyApp());
@@ -32,7 +37,17 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    PreferencesService.instance.loadDarkMode().then((v){ if(mounted) setState(() { _darkMode = v; _loaded = true; }); });
+    Future.wait([
+      PreferencesService.instance.loadDarkMode(),
+      PreferencesService.instance.loadUser(),
+    ]).then((results) {
+      final darkMode = results[0] as bool;
+      final user = results[1] as AuthUser?;
+      if (user != null) {
+        SessionService.instance.setUser(user);
+      }
+      if (mounted) setState(() { _darkMode = darkMode; _loaded = true; });
+    });
   }
 
   void _toggleTheme(){
@@ -84,6 +99,7 @@ class _MyAppState extends State<MyApp> {
       theme: baseTheme(lightScheme),
       darkTheme: baseTheme(darkScheme),
       themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
+      navigatorObservers: [routeObserver],
       routes: {
         SignInUserPage.routeName: (_) => const SignInUserPage(),
         SignInClientPage.routeName: (_) => const SignInClientPage(),

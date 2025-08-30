@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../api/auth_api.dart';
 
 class PreferencesService {
   PreferencesService._();
@@ -8,6 +12,7 @@ class PreferencesService {
   static const _kEmail = 'saved_email';
   static const _kRole = 'saved_role';
   static const _kDarkMode = 'dark_mode';
+  static const _kUser = 'saved_user';
 
   Future<void> saveRemembered({required bool remember, String? email, String? role}) async {
     final p = await SharedPreferences.getInstance();
@@ -37,5 +42,22 @@ class PreferencesService {
   Future<bool> loadDarkMode() async {
     final p = await SharedPreferences.getInstance();
     return p.getBool(_kDarkMode) ?? false;
+  }
+
+  Future<void> saveUser(AuthUser user) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kUser, jsonEncode(user.toJson()));
+  }
+
+  Future<AuthUser?> loadUser() async {
+    final p = await SharedPreferences.getInstance();
+    final userStr = p.getString(_kUser);
+    if (userStr == null) return null;
+    try {
+      final map = jsonDecode(userStr) as Map<String, dynamic>;
+      return AuthUser.fromJson(map);
+    } catch (_) {
+      return null;
+    }
   }
 }

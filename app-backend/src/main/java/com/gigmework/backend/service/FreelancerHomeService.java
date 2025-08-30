@@ -41,7 +41,7 @@ public class FreelancerHomeService {
     }
 
     public record HomeDto(Long userId, String email,
-                          String displayName, String professionalTitle, String skillsCsv,
+                          String displayName, String professionalTitle, String skillsCsv, String bio, String imageUrl,
                           long assignedCount, long completedCount, long portfolioCount,
                           long distinctClients, long totalBudgetCents, int successPercent,
                           List<JobDto> recentAssignedJobs,
@@ -55,6 +55,8 @@ public class FreelancerHomeService {
                     p != null ? p.getDisplayName() : null,
                     p != null ? p.getProfessionalTitle() : null,
                     p != null ? p.getSkillsCsv() : null,
+                    p != null ? p.getBio() : null,
+                    p != null ? p.getImageUrl() : null,
                     assignedCount, completedCount, portfolioCount,
                     distinctClients, totalBudgetCents, successPercent,
                     recentAssigned.stream().map(JobDto::from).collect(Collectors.toList()),
