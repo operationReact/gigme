@@ -72,9 +72,19 @@ public class FreelancerHomeService {
         }
     }
 
-    public record PortfolioDto(Long id, String title, String fileUrl, String mediaType) {
-        static PortfolioDto from(PortfolioItem p) {
-            return new PortfolioDto(p.getId(), p.getTitle(), p.getFileUrl(), p.getMediaType().name());
+    public record PortfolioDto(Long id, String title, String fileUrl, String mediaType, Long fileSize, Integer width, Integer height, Integer durationSeconds, String thumbnailUrl) {
+        public static PortfolioDto from(PortfolioItem p) {
+            return new PortfolioDto(
+                p.getId(),
+                p.getTitle(),
+                p.getFileUrl(),
+                p.getMediaType().name(),
+                p.getFileSize(),
+                p.getWidth(),
+                p.getHeight(),
+                p.getDurationSeconds(),
+                p.getThumbnailUrl()
+            );
         }
     }
 }

@@ -19,9 +19,12 @@ public class PortfolioItemService {
         this.userAccountRepository = userAccountRepository;
     }
 
-    public PortfolioItem createPortfolioItem(Long freelancerId, String title, String description, String fileUrl, MediaType mediaType) {
+
+
+    public PortfolioItem createPortfolioItem(Long freelancerId, String title, String description, String fileUrl, MediaType mediaType,
+                                            Long fileSize, Integer width, Integer height, Integer durationSeconds, String thumbnailUrl) {
         UserAccount freelancer = userAccountRepository.findById(freelancerId).orElseThrow();
-        PortfolioItem item = new PortfolioItem(freelancer, title, description, fileUrl, mediaType);
+        PortfolioItem item = new PortfolioItem(freelancer, title, description, fileUrl, mediaType, fileSize, width, height, durationSeconds, thumbnailUrl);
         return portfolioItemRepository.save(item);
     }
 
@@ -34,4 +37,3 @@ public class PortfolioItemService {
         }
     }
 }
-

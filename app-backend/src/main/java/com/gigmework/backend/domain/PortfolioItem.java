@@ -29,13 +29,34 @@ public class PortfolioItem {
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "file_size")
+    private Long fileSize; // in bytes
+
+    @Column(name = "width")
+    private Integer width; // for images/photos
+
+    @Column(name = "height")
+    private Integer height; // for images/photos
+
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds; // for videos
+
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl; // for videos
+
     protected PortfolioItem() {}
-    public PortfolioItem(UserAccount freelancer, String title, String description, String fileUrl, MediaType mediaType) {
+    public PortfolioItem(UserAccount freelancer, String title, String description, String fileUrl, MediaType mediaType,
+                        Long fileSize, Integer width, Integer height, Integer durationSeconds, String thumbnailUrl) {
         this.freelancer = freelancer;
         this.title = title;
         this.description = description;
         this.fileUrl = fileUrl;
         this.mediaType = mediaType;
+        this.fileSize = fileSize;
+        this.width = width;
+        this.height = height;
+        this.durationSeconds = durationSeconds;
+        this.thumbnailUrl = thumbnailUrl;
     }
     public Long getId() { return id; }
     public UserAccount getFreelancer() { return freelancer; }
@@ -44,4 +65,9 @@ public class PortfolioItem {
     public String getFileUrl() { return fileUrl; }
     public MediaType getMediaType() { return mediaType; }
     public Instant getCreatedAt() { return createdAt; }
+    public Long getFileSize() { return fileSize; }
+    public Integer getWidth() { return width; }
+    public Integer getHeight() { return height; }
+    public Integer getDurationSeconds() { return durationSeconds; }
+    public String getThumbnailUrl() { return thumbnailUrl; }
 }
