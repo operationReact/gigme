@@ -3,11 +3,50 @@ import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class HomeJobDto {
-  final int id; final String title; final int budgetCents; final String status; final String? clientEmail;
-  HomeJobDto({required this.id, required this.title, required this.budgetCents, required this.status, this.clientEmail});
-  factory HomeJobDto.fromJson(Map<String,dynamic> j)=> HomeJobDto(id: j['id'], title: j['title'], budgetCents: j['budgetCents'], status: j['status'], clientEmail: j['clientEmail']);
+  final int id;
+  final String title;
+  final int budgetCents;
+  final String status;
+  final String? clientEmail;
+
+  HomeJobDto({
+    required this.id,
+    required this.title,
+    required this.budgetCents,
+    required this.status,
+    this.clientEmail,
+  });
+
+  factory HomeJobDto.fromJson(Map<String, dynamic> j) => HomeJobDto(
+    id: j['id'],
+    title: j['title'],
+    budgetCents: j['budgetCents'],
+    status: j['status'],
+    clientEmail: j['clientEmail'],
+  );
 }
-class HomePortfolioDto { final int id; final String title; final String? imageUrl; HomePortfolioDto({required this.id, required this.title, this.imageUrl}); factory HomePortfolioDto.fromJson(Map<String,dynamic> j)=> HomePortfolioDto(id:j['id'], title:j['title'], imageUrl:j['imageUrl']); }
+
+class HomePortfolioDto {
+  final int id;
+  final String title;
+  final String fileUrl;
+  final String mediaType; // IMAGE | VIDEO | DOCUMENT
+
+  HomePortfolioDto({
+    required this.id,
+    required this.title,
+    required this.fileUrl,
+    required this.mediaType,
+  });
+
+  factory HomePortfolioDto.fromJson(Map<String, dynamic> j) => HomePortfolioDto(
+    id: j['id'],
+    title: j['title'],
+    fileUrl: j['fileUrl'],
+    mediaType: j['mediaType'],
+  );
+}
+
 class FreelancerHomeDto {
   final int userId;
   final String email;
@@ -25,6 +64,7 @@ class FreelancerHomeDto {
   final List<HomeJobDto> recentAssignedJobs;
   final List<HomeJobDto> recommendedJobs;
   final List<HomePortfolioDto> portfolioItems;
+
   FreelancerHomeDto({
     required this.userId,
     required this.email,
@@ -43,7 +83,8 @@ class FreelancerHomeDto {
     required this.recommendedJobs,
     required this.portfolioItems,
   });
-  factory FreelancerHomeDto.fromJson(Map<String,dynamic> j)=> FreelancerHomeDto(
+
+  factory FreelancerHomeDto.fromJson(Map<String, dynamic> j) => FreelancerHomeDto(
     userId: j['userId'],
     email: j['email'],
     displayName: j['displayName'],
@@ -57,9 +98,34 @@ class FreelancerHomeDto {
     distinctClients: j['distinctClients'],
     totalBudgetCents: j['totalBudgetCents'],
     successPercent: j['successPercent'],
-    recentAssignedJobs: (j['recentAssignedJobs'] as List).map((e)=> HomeJobDto.fromJson(e)).toList(),
-    recommendedJobs: (j['recommendedJobs'] as List).map((e)=> HomeJobDto.fromJson(e)).toList(),
-    portfolioItems: (j['portfolioItems'] as List).map((e)=> HomePortfolioDto.fromJson(e)).toList(),
+    recentAssignedJobs:
+    (j['recentAssignedJobs'] as List).map((e) => HomeJobDto.fromJson(e)).toList(),
+    recommendedJobs:
+    (j['recommendedJobs'] as List).map((e) => HomeJobDto.fromJson(e)).toList(),
+    portfolioItems:
+    (j['portfolioItems'] as List).map((e) => HomePortfolioDto.fromJson(e)).toList(),
   );
 }
-class HomeApi { final _client = ApiClient.instance; Future<FreelancerHomeDto> getHome(int userId) async { final http.Response res = await _client.get('/api/freelancers/$userId/home'); if(res.statusCode==200){ return FreelancerHomeDto.fromJson(jsonDecode(res.body)); } throw Exception('Failed home load ${res.statusCode}'); }}
+
+class HomeApi {
+  final _client = ApiClient.instance;
+
+  Future<List<HomePortfolioDto>> getPortfolioItems(int freelancerId, {String? mediaType}) async {
+    final uri = Uri.parse(
+        '/api/portfolio-items?freelancerId=$freelancerId${mediaType != null ? '&mediaType=$mediaType' : ''}');
+    final http.Response res = await _client.get(uri.toString());
+    if (res.statusCode == 200) {
+      final list = jsonDecode(res.body) as List;
+      return list.map((e) => HomePortfolioDto.fromJson(e)).toList();
+    }
+    throw Exception('Failed to load portfolio items: ${res.statusCode}');
+  }
+
+  Future<FreelancerHomeDto> getHome(int userId) async {
+    final http.Response res = await _client.get('/api/freelancers/$userId/home');
+    if (res.statusCode == 200) {
+      return FreelancerHomeDto.fromJson(jsonDecode(res.body));
+    }
+    throw Exception('Failed home load ${res.statusCode}');
+  }
+}

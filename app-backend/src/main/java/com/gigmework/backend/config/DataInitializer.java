@@ -46,11 +46,11 @@ public class DataInitializer {
                 jobs.save(j5);
 
                 // Portfolio items
-                portfolioItems.save(new PortfolioItem(free1, "SaaS Dashboard", "Admin analytics interface", "https://picsum.photos/seed/p1/400/300"));
-                portfolioItems.save(new PortfolioItem(free1, "E‑commerce App", "Mobile storefront prototype", "https://picsum.photos/seed/p2/400/300"));
-                portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://picsum.photos/seed/p3/400/300"));
-                portfolioItems.save(new PortfolioItem(free2, "Brand Kit", "Logo & typography system", "https://picsum.photos/seed/p4/400/300"));
-                portfolioItems.save(new PortfolioItem(free2, "Marketing Site", "Landing page redesign", "https://picsum.photos/seed/p5/400/300"));
+                portfolioItems.save(new PortfolioItem(free1, "SaaS Dashboard", "Admin analytics interface", "https://picsum.photos/seed/p1/400/300", MediaType.IMAGE));
+                portfolioItems.save(new PortfolioItem(free1, "E‑commerce App", "Mobile storefront prototype", "https://picsum.photos/seed/p2/400/300", MediaType.IMAGE));
+                portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", MediaType.VIDEO));
+                portfolioItems.save(new PortfolioItem(free2, "Brand Kit", "Logo & typography system", "https://picsum.photos/seed/p4/400/300", MediaType.IMAGE));
+                portfolioItems.save(new PortfolioItem(free2, "Marketing Site", "Landing page redesign", "https://file-examples.com/wp-content/uploads/2017/10/file-sample_150kB.pdf", MediaType.DOCUMENT));
             }
         };
     }

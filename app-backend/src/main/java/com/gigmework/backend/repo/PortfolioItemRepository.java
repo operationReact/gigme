@@ -9,5 +9,5 @@ import java.util.List;
 public interface PortfolioItemRepository extends JpaRepository<PortfolioItem, Long> {
     List<PortfolioItem> findTop6ByFreelancerOrderByCreatedAtDesc(UserAccount freelancer);
     long countByFreelancer(UserAccount freelancer);
+    List<PortfolioItem> findByFreelancerAndMediaTypeOrderByCreatedAtDesc(UserAccount freelancer, com.gigmework.backend.domain.MediaType mediaType);
 }
-

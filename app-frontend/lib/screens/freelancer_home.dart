@@ -56,11 +56,11 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
       extendBodyBehindAppBar: true,
       floatingActionButton: isMobile
           ? ApplyForWorkCta(
-              initialCount: _newJobsCount,
-              onPressed: _onApplyPressed,
-              dense: true,
-              showLabel: true, // Responsive hiding is handled inside the widget
-            )
+        initialCount: _newJobsCount,
+        onPressed: _onApplyPressed,
+        dense: true,
+        showLabel: true, // Responsive hiding is handled inside the widget
+      )
           : null,
       appBar: AppBar(
         title: const Text('Freelancer Home'),
@@ -362,9 +362,9 @@ class _HeaderHero extends StatelessWidget {
               Text(
                 'Your Freelance Workspace',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: _kHeading,
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: _kHeading,
+                ),
               ),
             ],
           ),
@@ -384,7 +384,7 @@ class _HeaderHero extends StatelessWidget {
 
 // Animated stats with icons
 class _StatsAndProgress extends StatelessWidget { const _StatsAndProgress(); @override Widget build(BuildContext context){ final home = HomeData.of(context); final d = home.data; final loading = home.loading; Widget content; if(loading || d==null){ content = LayoutBuilder(builder:(ctx,c){ final isWide = c.maxWidth>600; final placeholders = List.generate(4,(i)=>Expanded(child: Padding(padding: EdgeInsets.only(right: i==3?0:14), child: _SkeletonBar(width: double.infinity, height:90)))); if(isWide) return Row(children: placeholders); return Column(children: List.generate(4,(i)=> Padding(padding: EdgeInsets.only(bottom: i==3?0:14), child: SizedBox(height:90, child: _SkeletonBar(width:double.infinity, height:90))))); }); } else { final tiles = [ _AnimatedStat(icon: Icons.folder_open_outlined, label: 'Projects', value: d.assignedCount, tint: _kIndigo), _AnimatedStat(icon: Icons.people_outline, label: 'Clients', value: d.distinctClients, tint: _kTeal), _AnimatedStat(icon: Icons.attach_money, label: 'Earnings', value: d.totalBudgetCents~/100, currency: true, tint: _kViolet), _AnimatedStat(icon: Icons.emoji_events_outlined, label: 'Success', value: d.successPercent, suffix: '%', tint: _kIndigo), ]; content = LayoutBuilder(builder:(ctx,c){ final isWide = c.maxWidth>600; if(isWide){ final rowChildren=<Widget>[]; for(var i=0;i<tiles.length;i++){ rowChildren.add(Expanded(child: tiles[i])); if(i!=tiles.length-1) rowChildren.add(const SizedBox(width:14)); } return Row(children: rowChildren); } final col=<Widget>[]; for(var i=0;i<tiles.length;i++){ col.add(tiles[i]); if(i!=tiles.length-1) col.add(const SizedBox(height:14)); } return Column(children: col); }); }
-    return HoverScale(child: GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text('Performance Overview', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w700,color:_kHeading)), const SizedBox(height:16), content ]))); }
+return HoverScale(child: GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text('Performance Overview', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w700,color:_kHeading)), const SizedBox(height:16), content ]))); }
 }
 class _GlowingAvatar extends StatelessWidget { final bool loading; const _GlowingAvatar({required this.loading}); @override Widget build(BuildContext context){ return Stack(alignment: Alignment.center, children:[ AnimatedContainer(duration: const Duration(milliseconds:600), width:120, height:120, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: SweepGradient(colors: [_kTeal,_kIndigo,_kViolet,_kTeal], stops: [0,.33,.66,1]), boxShadow:[BoxShadow(color: Color(0x3300C2A8), blurRadius:30, offset: Offset(0,8))])), Container(width:108,height:108, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width:4), color: _kTeal.withValues(alpha:.15)), child: loading? const Center(child: CircularProgressIndicator(strokeWidth:3)) : const Icon(Icons.person, size:48, color: Colors.white)) ]); }}
 class _AnimatedStarRating extends StatefulWidget { final double rating; const _AnimatedStarRating({required this.rating}); @override State<_AnimatedStarRating> createState()=>_AnimatedStarRatingState(); }
@@ -395,7 +395,7 @@ class _AnimatedStat extends StatefulWidget { final IconData icon; final String l
 class _AnimatedStatState extends State<_AnimatedStat> with SingleTickerProviderStateMixin { late final AnimationController _ctl; late final Animation<double> _anim; @override void initState(){ super.initState(); _ctl=AnimationController(vsync:this,duration: const Duration(milliseconds:1100)); _anim=CurvedAnimation(parent:_ctl, curve: Curves.easeOutCubic); _ctl.forward(); } @override void dispose(){ _ctl.dispose(); super.dispose(); } String _format(int v){ if(widget.currency){ if(v>=1000){ return '\$'+(v/1000).toStringAsFixed(1)+'k'; } return '\$'+v.toString(); } return v.toString(); } @override Widget build(BuildContext context){ final isDark=_isDark(context); return AnimatedBuilder(animation:_anim, builder:(ctx,_) { final val=(widget.value*_anim.value).clamp(0, widget.value).round(); return Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: widget.tint.withValues(alpha:isDark?0.22:0.08), border: Border.all(color: Colors.white.withValues(alpha:isDark?0.18:0.38))), child: Row(children:[ Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors:[widget.tint, widget.tint.withValues(alpha:0.4)])), child: Icon(widget.icon, color: Colors.white, size:22)), const SizedBox(width:14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Text('${widget.prefix??''}${_format(val)}${widget.suffix??''}', style: Theme.of(context).textTheme.titleLarge?.copyWith(color:_kHeading, fontWeight: FontWeight.w700)), const SizedBox(height:4), Text(widget.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color:_kMuted, fontWeight: FontWeight.w500)), const SizedBox(height:6), LinearProgressIndicator(value: (val/widget.value).clamp(0,1), minHeight:4, backgroundColor: widget.tint.withValues(alpha:0.15), valueColor: AlwaysStoppedAnimation(widget.tint)) ])) ])); }); }
 }
 
-// Restore previously removed section widgets (simplified styling kept)
+// ---------- ABOUT / CONTACT / ACTIVITY / ACTIONS ----------
 class _AboutSection extends StatelessWidget {
   const _AboutSection();
   @override
@@ -496,9 +496,216 @@ class _QuickActions extends StatelessWidget {
     );
   }
 }
-class _PortfolioSection extends StatelessWidget { const _PortfolioSection(); @override Widget build(BuildContext context){ final home = HomeData.of(context); final d = home.data; final loading = home.loading; final items = (d?.portfolioItems ?? []).take(8).toList(); return HoverScale(child: GlassCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[ Row(children:[ Text('Portfolio', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w700,color:_kHeading)), const Spacer(), _LargeAddProjectButton(onTap: (){}) ]), const SizedBox(height:16), if(loading) Wrap(spacing:14, runSpacing:14, children: List.generate(4,(i)=> const SizedBox(width:160, height:120, child: _SkeletonBar(width:160, height:120)))) else LayoutBuilder(builder:(ctx,c){ final cols = c.maxWidth>1000?4: c.maxWidth>760?3:2; final gap=14.0; final w=(c.maxWidth - (cols-1)*gap)/cols; final tiles = items.map((pi)=> SizedBox(width:w, child: _DynamicPortfolioCard(title: pi.title, imageUrl: pi.imageUrl))).toList(); while(tiles.length < cols*2){ tiles.add(SizedBox(width:w, child: _EmptyPortfolioCard(onTap: (){}))); } return Wrap(spacing:gap, runSpacing:gap, children: tiles); }) ]))); }}
+
+// ------------------ NEW: TABBED PORTFOLIO SECTION ------------------
+class _PortfolioSection extends StatefulWidget {
+  const _PortfolioSection();
+  @override
+  State<_PortfolioSection> createState() => _PortfolioSectionState();
+}
+
+class _PortfolioSectionState extends State<_PortfolioSection>
+    with SingleTickerProviderStateMixin {
+  static const _tabs = ['Images', 'Videos', 'Documents'];
+  late final TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: _tabs.length, vsync: this);
+    _tabCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+
+    final items = (d?.portfolioItems ?? const <HomePortfolioDto>[]);
+
+    List<HomePortfolioDto> _filterForTab(int index) {
+      switch (_tabs[index]) {
+        case 'Images':
+          return items.where((p) => (p.mediaType).toUpperCase() == 'IMAGE').toList();
+        case 'Videos':
+          return items.where((p) => (p.mediaType).toUpperCase() == 'VIDEO').toList();
+        case 'Documents':
+        default:
+          return items.where((p) => (p.mediaType).toUpperCase() == 'DOCUMENT').toList();
+      }
+    }
+
+    Widget _grid(List<HomePortfolioDto> list) {
+      return LayoutBuilder(builder: (ctx, c) {
+        final cols = c.maxWidth > 1000 ? 4 : c.maxWidth > 760 ? 3 : 2;
+        const gap = 14.0;
+        final w = (c.maxWidth - (cols - 1) * gap) / cols;
+
+        final tiles = <Widget>[
+          ...list.map((pi) {
+            final kind = pi.mediaType.toUpperCase() == 'VIDEO'
+                ? _MediaKind.video
+                : (pi.mediaType.toUpperCase() == 'DOCUMENT'
+                ? _MediaKind.document
+                : _MediaKind.image);
+            return SizedBox(
+              width: w,
+              child: _MediaPortfolioCard(
+                title: pi.title.isEmpty ? 'Untitled' : pi.title,
+                fileUrl: pi.fileUrl,
+                kind: kind,
+              ),
+            );
+          }),
+        ];
+
+        // Keep grid filled with "add" placeholders like before
+        while (tiles.length < cols * 2) {
+          tiles.add(SizedBox(width: w, child: _EmptyPortfolioCard(onTap: () {})));
+        }
+
+        return Wrap(spacing: gap, runSpacing: gap, children: tiles);
+      });
+    }
+
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(
+                'Portfolio',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700, color: _kHeading),
+              ),
+              const Spacer(),
+              _LargeAddProjectButton(onTap: () {}),
+            ]),
+            const SizedBox(height: 12),
+
+            // Tabs (self-contained controller; won't affect other widgets)
+            TabBar(
+              controller: _tabCtrl,
+              isScrollable: true,
+              indicatorColor: _kIndigo,
+              labelColor: _kHeading,
+              unselectedLabelColor: _kMuted,
+              tabs: const [
+                Tab(text: 'Images'),
+                Tab(text: 'Videos'),
+                Tab(text: 'Documents'),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            if (loading)
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: List.generate(
+                  4,
+                      (i) => const SizedBox(
+                    width: 160,
+                    height: 120,
+                    child: _SkeletonBar(width: 160, height: 120),
+                  ),
+                ),
+              )
+            else
+              _grid(_filterForTab(_tabCtrl.index)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _MediaKind { image, video, document }
+
+class _MediaPortfolioCard extends StatelessWidget {
+  final String title; final String? fileUrl; final _MediaKind kind;
+  const _MediaPortfolioCard({required this.title, this.fileUrl, required this.kind});
+
+  IconData get _icon {
+    switch (kind) {
+      case _MediaKind.video: return Icons.play_circle_fill_rounded;
+      case _MediaKind.document: return Icons.description_rounded;
+      case _MediaKind.image: default: return Icons.image_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverScale(
+      child: AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+            gradient: const LinearGradient(
+              colors: [_kIndigo, _kViolet],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            image: (fileUrl != null && kind != _MediaKind.document)
+                ? DecorationImage(
+              image: NetworkImage(fileUrl!),
+              fit: BoxFit.cover,
+              opacity: 0.25,
+            )
+                : null,
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Center(
+                  child: Opacity(
+                    opacity: 0.18,
+                    child: Icon(_icon, size: 64, color: Colors.white),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------- OTHER SECTIONS (UNCHANGED) -----------------
 class _DynamicPortfolioCard extends StatelessWidget {
-  final String title; final String? imageUrl; const _DynamicPortfolioCard({required this.title, this.imageUrl});
+  final String title; final String? fileUrl;
+  const _DynamicPortfolioCard({required this.title, this.fileUrl});
   @override Widget build(BuildContext context){
     return HoverScale(
       child: AspectRatio(
@@ -508,7 +715,7 @@ class _DynamicPortfolioCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.white.withValues(alpha:0.30)),
             gradient: const LinearGradient(colors:[_kIndigo,_kViolet], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            image: imageUrl!=null? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover, opacity:0.25): null,
+            image: fileUrl!=null? DecorationImage(image: NetworkImage(fileUrl!), fit: BoxFit.cover, opacity:0.25): null,
           ),
           child: Stack(children:[
             Positioned.fill(child: Opacity(opacity:0.10, child: const Icon(Icons.image_outlined, size:64, color:Colors.white))),
@@ -555,7 +762,7 @@ class _ScheduleMini extends StatelessWidget {
     final home = HomeData.of(context);
     final loading = home.loading;
     // Placeholder list of upcoming items (no schedule data yet in DTO)
-    final upcoming = <String>['Daily stand‑up 9:00 AM', 'Client sync 2:30 PM'];
+    final upcoming = <String>['Daily stand-up 9:00 AM', 'Client sync 2:30 PM'];
     return HoverScale(
       child: GlassCard(
         child: Column(
@@ -565,22 +772,22 @@ class _ScheduleMini extends StatelessWidget {
             const SizedBox(height: 8),
             if (loading)
               ...List.generate(2, (i) => Padding(
-                    padding: EdgeInsets.only(bottom: i == 1 ? 0 : 10),
-                    child: const _SkeletonBar(width: double.infinity, height: 46),
-                  ))
+                padding: EdgeInsets.only(bottom: i == 1 ? 0 : 10),
+                child: const _SkeletonBar(width: double.infinity, height: 46),
+              ))
             else if (upcoming.isEmpty)
               const Text('No upcoming events', style: TextStyle(color: _kMuted))
             else
               ...upcoming.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.event_note_outlined, size: 18, color: _kIndigo),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(e, style: const TextStyle(color: _kBody))),
-                      ],
-                    ),
-                  )),
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.event_note_outlined, size: 18, color: _kIndigo),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(e, style: const TextStyle(color: _kBody))),
+                  ],
+                ),
+              )),
           ],
         ),
       ),
@@ -669,7 +876,7 @@ class _EmptyPortfolioCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 160,
-    child: Card(child: InkWell(onTap: onTap, child: SizedBox(width: 100, height: 80, child: Center(child: Icon(Icons.add))))),
+    child: Card(child: InkWell(onTap: onTap, child: const SizedBox(width: 100, height: 80, child: Center(child: Icon(Icons.add))))),
   );
 }
 class _RecCard extends StatelessWidget {
@@ -690,9 +897,9 @@ class _ContractTile extends StatelessWidget {
   final String due;
   const _ContractTile({super.key, required this.client, required this.role, required this.progress, required this.due});
   @override
-  Widget build(BuildContext context) => SizedBox(
+  Widget build(BuildContext context) => const SizedBox(
     width: 250,
-    child: ListTile(title: Text(role), subtitle: Text(client)),
+    child: ListTile(title: Text(''), subtitle: Text('')),
   );
 }
 class _ContactRow extends StatelessWidget {
@@ -701,7 +908,7 @@ class _ContactRow extends StatelessWidget {
   final String value;
   const _ContactRow({super.key, required this.icon, required this.label, required this.value});
   @override
-  Widget build(BuildContext context) => Row(children: [Icon(icon), SizedBox(width: 8), Text('$label: $value')]);
+  Widget build(BuildContext context) => Row(children: [Icon(icon), const SizedBox(width: 8), Text('$label: $value')]);
 }
 
 // --- STUBS FOR MISSING WIDGETS ---

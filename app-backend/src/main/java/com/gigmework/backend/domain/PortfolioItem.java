@@ -20,20 +20,28 @@ public class PortfolioItem {
     private String description;
 
     @Column(length = 500)
-    private String imageUrl;
+    private String fileUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private MediaType mediaType;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     protected PortfolioItem() {}
-    public PortfolioItem(UserAccount freelancer, String title, String description, String imageUrl) {
-        this.freelancer = freelancer; this.title = title; this.description = description; this.imageUrl = imageUrl;
+    public PortfolioItem(UserAccount freelancer, String title, String description, String fileUrl, MediaType mediaType) {
+        this.freelancer = freelancer;
+        this.title = title;
+        this.description = description;
+        this.fileUrl = fileUrl;
+        this.mediaType = mediaType;
     }
     public Long getId() { return id; }
     public UserAccount getFreelancer() { return freelancer; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
-    public String getImageUrl() { return imageUrl; }
+    public String getFileUrl() { return fileUrl; }
+    public MediaType getMediaType() { return mediaType; }
     public Instant getCreatedAt() { return createdAt; }
 }
-
