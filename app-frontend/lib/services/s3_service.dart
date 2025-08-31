@@ -38,6 +38,17 @@ class S3Service {
     }
   }
 
+  static Future<void> uploadBytesToS3(String presignedUrl, List<int> bytes) async {
+    // On web, do not set Content-Type header to avoid S3 signature mismatch
+    final response = await http.put(
+      Uri.parse(presignedUrl),
+      body: bytes,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to upload file to S3: \\nStatus: \\${response.statusCode}\\nBody: \\${response.body}');
+    }
+  }
+
   static Future<http.Response> downloadFileFromS3(String presignedUrl) async {
     final response = await http.get(Uri.parse(presignedUrl));
     if (response.statusCode == 200) {
@@ -47,4 +58,3 @@ class S3Service {
     }
   }
 }
-

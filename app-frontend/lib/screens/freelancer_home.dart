@@ -1,14 +1,20 @@
 import 'dart:ui' as ui;
 import 'dart:math' as math;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import '../services/session_service.dart';
 import '../api/home_api.dart';
 import '../widgets/apply_for_work_cta.dart';
 import '../job_service.dart';
 import '../widgets/profile_preview_card.dart';
 import '../main.dart';
+import '../services/s3_service.dart';
+import 'package:http/http.dart' as http;
+import '../env.dart';
 
 // Brand palette constants
 const _kTeal = Color(0xFF00C2A8);
@@ -904,6 +910,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
   // 0: Images, 1: Videos, 2: Documents
   int _tabIndex = 0;
   bool _loading = true;
+  bool _uploading = false;
+  String? _uploadError;
   List<HomePortfolioDto> _items = [];
   final List<String> _mediaTypes = ['IMAGE', 'VIDEO', 'DOCUMENT'];
 
@@ -926,6 +934,84 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
       if (mounted) setState(() { _items = items; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _items = []; _loading = false; });
+    }
+  }
+
+  Future<void> _pickAndUploadFile() async {
+    setState(() { _uploading = true; _uploadError = null; });
+    try {
+      FileType fileType;
+      List<String>? allowedExtensions;
+      String mediaType = _mediaTypes[_tabIndex];
+      switch (mediaType) {
+        case 'IMAGE':
+          fileType = FileType.image;
+          allowedExtensions = null;
+          break;
+        case 'VIDEO':
+          fileType = FileType.video;
+          allowedExtensions = null;
+          break;
+        case 'DOCUMENT':
+          fileType = FileType.custom;
+          allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+          break;
+        default:
+          fileType = FileType.any;
+          allowedExtensions = null;
+      }
+      final result = fileType == FileType.custom
+          ? await FilePicker.platform.pickFiles(type: fileType, allowedExtensions: allowedExtensions)
+          : await FilePicker.platform.pickFiles(type: fileType);
+      if (result == null || result.files.isEmpty) {
+        setState(() { _uploading = false; });
+        return;
+      }
+      final fileName = result.files.single.name;
+      final user = HomeData.of(context).data;
+      if (user == null) throw Exception('User not loaded');
+      // 1. Get presigned upload URL
+      final key = '${mediaType.toLowerCase()}s/${user.userId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      final presignedUrl = await S3Service.getPresignedUploadUrl(key);
+      // 2. Upload file to S3
+      if (kIsWeb) {
+        // On web, use bytes
+        if (result.files.single.bytes == null) throw Exception('File bytes are null');
+        await S3Service.uploadBytesToS3(presignedUrl, result.files.single.bytes!);
+      } else {
+        final file = File(result.files.single.path!);
+        await S3Service.uploadFileToS3(presignedUrl, file);
+      }
+      // 3. Register portfolio item in backend
+      final fileUrl = EnvConfig.s3FileUrl(key); // TODO: replace with actual bucket/region
+      final uri = Uri.parse('${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['freelancerId'] = user.userId.toString()
+        ..fields['title'] = fileName
+        ..fields['mediaType'] = mediaType;
+      if (kIsWeb) {
+        if (result.files.single.bytes == null) throw Exception('File bytes are null');
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            result.files.single.bytes!,
+            filename: fileName,
+          ),
+        );
+      } else {
+        final file = File(result.files.single.path!);
+        request.files.add(
+          await http.MultipartFile.fromPath('file', file.path),
+        );
+      }
+      final streamed = await request.send();
+      if (streamed.statusCode != 200) {
+        throw Exception('Failed to register portfolio item');
+      }
+      setState(() { _uploading = false; });
+      _fetchItems();
+    } catch (e) {
+      setState(() { _uploading = false; _uploadError = e.toString(); });
     }
   }
 
@@ -1092,11 +1178,23 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
                 const Spacer(),
                 Tooltip(
                   message: 'Add Project',
-                  child: _LargeAddProjectButton(onTap: () {
-                    // Optionally, after adding a project, call _fetchItems();
-                  }),
+                  child: _LargeAddProjectButton(
+                    onTap: () {
+                      if (!_uploading) {
+                        _pickAndUploadFile();
+                      }
+                    },
+                  ),
                 ),
               ]),
+              if (_uploading) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
+              ],
+              if (_uploadError != null) ...[
+                const SizedBox(height: 10),
+                Text(_uploadError!, style: const TextStyle(color: Colors.red)),
+              ],
               const SizedBox(height: 14),
               _segmentedTabs(),
               const SizedBox(height: 16),
@@ -1650,7 +1748,7 @@ class _LargeAddProjectButton extends StatelessWidget {
   const _LargeAddProjectButton({super.key, required this.onTap});
   @override
   Widget build(BuildContext context) =>
-      ElevatedButton.icon(onPressed: onTap, icon: const Icon(Icons.add), label: const Text('Add Project'));
+      ElevatedButton.icon(onPressed: onTap, icon: const Icon(Icons.add), label: const Text('Upload Portfolio'));
 }
 
 class _EmptyPortfolioCard extends StatelessWidget {

@@ -13,4 +13,12 @@ class EnvConfig {
     if (Platform.isAndroid) return 'http://10.0.2.2:8081';
     return 'http://localhost:8081';
   }
+
+  static const String s3Bucket = 'gigmes3dev';
+  static const String s3Region = 'us-east-1';
+
+  /// Constructs the S3 file URL for a given key.
+  static String s3FileUrl(String key) {
+    return 'https://$s3Bucket.s3.$s3Region.amazonaws.com/$key';
+  }
 }
