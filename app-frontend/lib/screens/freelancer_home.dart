@@ -975,37 +975,34 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
       final presignedUrl = await S3Service.getPresignedUploadUrl(key);
       // 2. Upload file to S3
       if (kIsWeb) {
-        // On web, use bytes
         if (result.files.single.bytes == null) throw Exception('File bytes are null');
         await S3Service.uploadBytesToS3(presignedUrl, result.files.single.bytes!);
       } else {
         final file = File(result.files.single.path!);
         await S3Service.uploadFileToS3(presignedUrl, file);
       }
-      // 3. Register portfolio item in backend
+      // 3. Register portfolio item in backend (send only metadata)
       final fileUrl = EnvConfig.s3FileUrl(key); // TODO: replace with actual bucket/region
       final uri = Uri.parse('${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['freelancerId'] = user.userId.toString()
-        ..fields['title'] = fileName
-        ..fields['mediaType'] = mediaType;
-      if (kIsWeb) {
-        if (result.files.single.bytes == null) throw Exception('File bytes are null');
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'file',
-            result.files.single.bytes!,
-            filename: fileName,
-          ),
-        );
-      } else {
-        final file = File(result.files.single.path!);
-        request.files.add(
-          await http.MultipartFile.fromPath('file', file.path),
-        );
-      }
-      final streamed = await request.send();
-      if (streamed.statusCode != 200) {
+      final Map<String, String> fields = {
+        'freelancerId': user.userId.toString(),
+        'title': fileName,
+        'mediaType': mediaType,
+        'fileUrl': fileUrl,
+      };
+      // Optionally add more metadata if available
+      if (result.files.single.size != null) fields['fileSize'] = result.files.single.size.toString();
+      // Add description, width, height, durationSeconds, thumbnailUrl if available
+      // fields['description'] = ...
+      // fields['width'] = ...
+      // fields['height'] = ...
+      // fields['durationSeconds'] = ...
+      // fields['thumbnailUrl'] = ...
+      final response = await http.post(
+        uri,
+        body: fields,
+      );
+      if (response.statusCode != 200) {
         throw Exception('Failed to register portfolio item');
       }
       setState(() { _uploading = false; });
