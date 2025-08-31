@@ -25,7 +25,7 @@ public class DataInitializer {
                 clients.save(new ClientProfile(client1, "Client One", "https://client.one", "Early adopter client."));
                 clients.save(new ClientProfile(client2, "Acme Corp", "https://acme.test", "Acme hires for diverse micro-projects."));
 
-                freelancers.save(new FreelancerProfile(free1, "Satya Varma Lutukurthi", "Public FIgure", "Building robust Flutter & Spring apps.", "Content Creator,Youtuber,REST,PostgreSQL", "https://randomuser.me/api/portraits/men/1.jpg"));
+                freelancers.save(new FreelancerProfile(free1, "Satya Varma Lutukurthi", "Public FIgure", "Building robust Flutter & Spring apps.", "Content Creator,Youtuber,REST,PostgreSQL", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1756662949800_amb.png"));
                 freelancers.save(new FreelancerProfile(free2, "Creative Designer", "UI/UX Designer", "Designing intuitive user experiences.", "Figma,UX,Branding", "https://randomuser.me/api/portraits/women/2.jpg"));
 
                 Job j1 = new Job("Build landing page animation", "Need a smooth hero animation in Flutter Web.", client1, 150_00L);
