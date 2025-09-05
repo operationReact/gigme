@@ -72,7 +72,10 @@ public class FreelancerHomeService {
         }
     }
 
-    public record PortfolioDto(Long id, String title, String fileUrl, String mediaType, Long fileSize, Integer width, Integer height, Integer durationSeconds, String thumbnailUrl) {
+    public record PortfolioDto(Long id, String title, String fileUrl, String mediaType,
+                             Long fileSize, Integer width, Integer height,
+                             Integer durationSeconds, String thumbnailUrl,
+                             String mimeType, Integer pageCount) {
         public static PortfolioDto from(PortfolioItem p) {
             return new PortfolioDto(
                 p.getId(),
@@ -83,7 +86,9 @@ public class FreelancerHomeService {
                 p.getWidth(),
                 p.getHeight(),
                 p.getDurationSeconds(),
-                p.getThumbnailUrl()
+                p.getThumbnailUrl(),
+                null, // mimeType not stored on entity
+                null  // pageCount not stored on entity
             );
         }
     }
