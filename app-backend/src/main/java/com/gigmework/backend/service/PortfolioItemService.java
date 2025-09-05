@@ -33,7 +33,8 @@ public class PortfolioItemService {
         if (mediaType == null) {
             return portfolioItemRepository.findTop6ByFreelancerOrderByCreatedAtDesc(freelancer);
         } else {
-            return portfolioItemRepository.findByFreelancerAndMediaTypeOrderByCreatedAtDesc(freelancer, mediaType);
+            List<PortfolioItem> byFreelancerAndMediaTypeOrderByCreatedAtDesc = portfolioItemRepository.findByFreelancerAndMediaTypeOrderByCreatedAtDesc(freelancer, mediaType);
+        return byFreelancerAndMediaTypeOrderByCreatedAtDesc;
         }
     }
 }

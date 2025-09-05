@@ -266,7 +266,7 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                       final children = [
                                         _ActionCard(
                                           icon: Icons.person_outline,
-                                          title: 'I am a Freelancer',
+                                          title: 'I am a Freelancer or Professional',
                                           subtitle: 'Create a stellar profile and showcase your work',
                                           gradient: LinearGradient(colors: [cs.secondary, cs.tertiary]),
                                           heroTag: 'hero-freelancer',
@@ -275,8 +275,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                         ),
                                         _ActionCard(
                                           icon: Icons.business_center_outlined,
-                                          title: 'I need a freelancer',
-                                          subtitle: 'Post jobs and hire verified talent',
+                                          title: 'I need a freelancer or professional',
+                                          subtitle: 'Post freelancing jobs and hire verified talent',
                                           gradient: LinearGradient(colors: [cs.tertiary, cs.secondary]),
                                           heroTag: 'hero-client',
                                           width: cardWidth,

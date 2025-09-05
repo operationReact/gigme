@@ -25,7 +25,7 @@ public class DataInitializer {
                 clients.save(new ClientProfile(client1, "Client One", "https://client.one", "Early adopter client."));
                 clients.save(new ClientProfile(client2, "Acme Corp", "https://acme.test", "Acme hires for diverse micro-projects."));
 
-                freelancers.save(new FreelancerProfile(free1, "Satya Varma Lutukurthi", "Public FIgure", "Building robust Flutter & Spring apps.", "Content Creator,Youtuber,REST,PostgreSQL", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1756662949800_amb.png"));
+                freelancers.save(new FreelancerProfile(free1, "Satya Varma Lutukurthi", "Public FIgure", "Building robust Flutter & Spring apps.", "Content Creator,Youtuber,REST,PostgreSQL", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1756664248816_thestayabro.jpg"));
                 freelancers.save(new FreelancerProfile(free2, "Creative Designer", "UI/UX Designer", "Designing intuitive user experiences.", "Figma,UX,Branding", "https://randomuser.me/api/portraits/women/2.jpg"));
 
                 Job j1 = new Job("Build landing page animation", "Need a smooth hero animation in Flutter Web.", client1, 150_00L);
@@ -45,13 +45,13 @@ public class DataInitializer {
                 jobs.save(j4);
                 jobs.save(j5);
 
-                /*// Portfolio items
-                portfolioItems.save(new PortfolioItem(free1, "SaaS Dashboard", "Admin analytics interface", "https://picsum.photos/seed/p1/400/300", MediaType.IMAGE, 204800L, 400, 300, null, null));
-                portfolioItems.save(new PortfolioItem(free1, "E‑commerce App", "Mobile storefront prototype", "https://picsum.photos/seed/p2/400/300", MediaType.IMAGE, 205000L, 400, 300, null, null));
+
+                portfolioItems.save(new PortfolioItem(free1, "SaaS Dashboard", "Admin analytics interface", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 204800L, 400, 300, null, null));
+                portfolioItems.save(new PortfolioItem(free1, "E‑commerce App", "Mobile storefront prototype", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 205000L, 400, 300, null, null));
                 portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", MediaType.VIDEO, 1048576L, null, null, 60, "https://img.youtube.com/vi/YE7VzlLtp-4/0.jpg"));
-                portfolioItems.save(new PortfolioItem(free2, "Brand Kit", "Logo & typography system", "https://picsum.photos/seed/p4/400/300", MediaType.IMAGE, 203000L, 400, 300, null, null));
-                portfolioItems.save(new PortfolioItem(free2, "Marketing Site", "Landing page redesign", "https://file-examples.com/wp-content/uploads/2017/10/file-sample_150kB.pdf", MediaType.DOCUMENT, 153600L, null, null, null, null));
-          */  }
+                portfolioItems.save(new PortfolioItem(free2, "Brand Kit", "Logo & typography system", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 203000L, 400, 300, null, null));
+                portfolioItems.save(new PortfolioItem(free2, "Marketing Site", "Landing page redesign", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/99666.pdf", MediaType.DOCUMENT, 153600L, null, null, null, null));
+            }
         };
     }
 }
