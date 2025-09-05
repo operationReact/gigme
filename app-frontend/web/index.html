@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -28,6 +28,40 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- pdfx: include pdf.js and worker, and configure worker for Flutter Web -->
+  <script src="assets/packages/pdfx/assets/pdfjs/pdf.min.js"></script>
+  <script>
+    // Fallback to CDN if local asset path fails to provide pdfjsLib
+    (function ensurePdfjs() {
+      function setWorker(base) {
+        if (typeof pdfjsLib !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+        }
+      }
+      // Try local first
+      if (typeof pdfjsLib !== 'undefined') {
+        setWorker('assets/packages/pdfx/assets/pdfjs/');
+        return;
+      }
+      // Try alternative local path
+      var alt = document.createElement('script');
+      alt.src = 'assets/packages/pdfx/assets/pdfjs/build/pdf.min.js';
+      alt.onload = function() { setWorker('assets/packages/pdfx/assets/pdfjs/build/'); };
+      alt.onerror = function() {
+        // Final fallback: CDN (pinned)
+        var cdn = document.createElement('script');
+        cdn.src = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+        cdn.onload = function() {
+          if (typeof pdfjsLib !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+          }
+        };
+        document.head.appendChild(cdn);
+      };
+      document.head.appendChild(alt);
+    })();
+  </script>
 
   <title>Gigmework</title>
   <link rel="manifest" href="manifest.json">
