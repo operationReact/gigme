@@ -48,9 +48,9 @@ public class DataInitializer {
 
                 portfolioItems.save(new PortfolioItem(free1, "SaaS Dashboard", "Admin analytics interface", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 204800L, 400, 300, null, null));
                 portfolioItems.save(new PortfolioItem(free1, "E‑commerce App", "Mobile storefront prototype", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 205000L, 400, 300, null, null));
-                portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", MediaType.VIDEO, 1048576L, null, null, 60, "https://img.youtube.com/vi/YE7VzlLtp-4/0.jpg"));
-                portfolioItems.save(new PortfolioItem(free2, "Brand Kit", "Logo & typography system", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 203000L, 400, 300, null, null));
-                portfolioItems.save(new PortfolioItem(free2, "Marketing Site", "Landing page redesign", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/99666.pdf", MediaType.DOCUMENT, 153600L, null, null, null, null));
+                portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/Bihar+tree+scam.mov", MediaType.VIDEO, 1048576L, null, null, 60, "https://img.youtube.com/vi/YE7VzlLtp-4/0.jpg"));
+                portfolioItems.save(new PortfolioItem(free1, "Brand Kit", "Logo & typography system", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 203000L, 400, 300, null, null));
+                portfolioItems.save(new PortfolioItem(free1, "Marketing Site", "Landing page redesign", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/99666.pdf", MediaType.DOCUMENT, 153600L, null, null, null, null));
             }
         };
     }
