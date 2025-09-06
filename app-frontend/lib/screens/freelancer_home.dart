@@ -16,8 +16,11 @@ import '../main.dart';
 import '../services/s3_service.dart';
 import 'package:http/http.dart' as http;
 import '../env.dart';
-// REMOVED: cached_network_image (web can be finicky with CORS + decoding for some S3/CF setups)
-// import 'package:cached_network_image/cached_network_image.dart';
+
+// ✅ Contact imports
+import '../api/contact_api.dart';
+import '../models/contact.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -187,7 +190,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                                     SizedBox(height: 20),
                                     _AboutSection(),
                                     SizedBox(height: 20),
-                                    _ContactSection(),
+                                    _ContactSectionRemote(),
                                     SizedBox(height: 20),
                                     _RecentActivitySection(),
                                   ],
@@ -227,7 +230,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                           const SizedBox(height: 20),
                           const _AboutSection(),
                           const SizedBox(height: 20),
-                          const _ContactSection(),
+                          const _ContactSectionRemote(),
                           const SizedBox(height: 20),
                           const _RecentActivitySection(),
                           const SizedBox(height: 20),
@@ -772,434 +775,277 @@ class _AboutSection extends StatelessWidget {
 }
 
 /// ------------------------------------------------------------
-/// CONTACT: Editable social links with smart icons + quick actions
+/// CONTACT (Backend): Editable links fetched from API
 /// ------------------------------------------------------------
-class _ContactSection extends StatefulWidget {
-  const _ContactSection();
+class _ContactSectionRemote extends StatefulWidget {
+  const _ContactSectionRemote();
   @override
-  State<_ContactSection> createState() => _ContactSectionState();
+  State<_ContactSectionRemote> createState() => _ContactSectionRemoteState();
 }
 
-class _ContactSectionState extends State<_ContactSection> {
-  final List<_SocialLink> _links = [];
+class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
+  List<ContactLinkDto> _links = [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Seed with a website if present; else an example
-    final website = 'portfolio.example.com';
-    _links.add(_SocialLink.auto(label: 'Website', url: _ensureUrl(website)));
+    _loadLinks();
   }
 
-  static String _ensureUrl(String raw) {
-    if (raw.isEmpty) return '';
-    final t = raw.trim();
-    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('mailto:')) {
-      return t;
-    }
-    // Simple heuristic: email-like
-    if (t.contains('@') && !t.contains(' ')) {
-      return 'mailto:$t';
-    }
-    return 'https://$t';
-  }
-
-  Future<void> _addOrEdit({_SocialLink? initial, int? index}) async {
-    final result = await showDialog<_SocialLink>(
-      context: context,
-      builder: (_) => _LinkEditorDialog(initial: initial),
-    );
-    if (result == null) return;
+  Future<void> _loadLinks() async {
     setState(() {
-      if (index != null) {
-        _links[index] = result;
-      } else {
-        _links.add(result);
-      }
+      _loading = true;
+      _error = null;
     });
+    try {
+      final user = SessionService.instance.user;
+      if (user == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Not signed in';
+        });
+        return;
+      }
+      _links = await ContactApi().listLinks(user.id);
+      setState(() => _loading = false);
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = 'Failed to load links';
+      });
+    }
   }
 
-  Future<void> _open(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _showLinkDialog({ContactLinkDto? existing}) async {
+    final labelCtrl = TextEditingController(text: existing?.label ?? '');
+    final urlCtrl = TextEditingController(text: existing?.url ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    IconData _pickIcon(String url, String label) {
+      final l = label.toLowerCase();
+      final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+      if (host.contains('linkedin') || l.contains('linkedin')) return Icons.work_outline;
+      if (host.contains('github') || l.contains('github')) return Icons.code;
+      if (host.contains('twitter') || host.contains('x.com') || l.contains('twitter')) return Icons.alternate_email;
+      if (host.contains('youtube')) return Icons.ondemand_video;
+      if (host.contains('instagram')) return Icons.camera_alt_outlined;
+      if (host.contains('facebook')) return Icons.facebook;
+      if (host.contains('t.me') || host.contains('telegram')) return Icons.send_outlined;
+      return Icons.link;
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(existing == null ? 'Add link' : 'Edit link'),
+        content: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(
+              controller: labelCtrl,
+              decoration: const InputDecoration(labelText: 'Label'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            TextFormField(
+              controller: urlCtrl,
+              decoration: const InputDecoration(labelText: 'URL (https://...)'),
+              validator: (v) {
+                final uri = v != null ? Uri.tryParse(v.trim()) : null;
+                final ok = uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+                return ok ? null : 'Enter a valid URL';
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Text('Preview icon:'),
+              const SizedBox(width: 8),
+              ValueListenableBuilder(
+                valueListenable: urlCtrl,
+                builder: (_, __, ___) => Icon(_pickIcon(urlCtrl.text, labelCtrl.text)),
+              )
+            ])
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                final userId = SessionService.instance.user?.id;
+                if (userId == null) throw Exception('Not signed in');
+                if (existing == null) {
+                  await ContactApi().createLink(
+                    userId: userId,
+                    label: labelCtrl.text.trim(),
+                    url: urlCtrl.text.trim(),
+                  );
+                } else {
+                  await ContactApi().updateLink(
+                    existing.id,
+                    label: labelCtrl.text.trim(),
+                    url: urlCtrl.text.trim(),
+                  );
+                }
+                Navigator.pop(context, true);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Save failed')),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true) {
+      await _loadLinks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved')),
+        );
       }
-    } catch (_) {}
+    }
+  }
+
+  Future<void> _confirmDelete(ContactLinkDto link) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete link?'),
+        content: Text('Remove "${link.label}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await ContactApi().deleteLink(link.id);
+        await _loadLinks();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delete failed')));
+        }
+      }
+    }
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open')));
+    }
+  }
+
+  IconData _iconFor(ContactLinkDto l) {
+    final host = Uri.tryParse(l.url)?.host.toLowerCase() ?? '';
+    final label = l.label.toLowerCase();
+    if (host.contains('linkedin') || label.contains('linkedin')) return Icons.work_outline;
+    if (host.contains('github') || label.contains('github')) return Icons.code;
+    if (host.contains('twitter') || host.contains('x.com') || label.contains('twitter')) return Icons.alternate_email;
+    if (host.contains('youtube')) return Icons.ondemand_video;
+    if (host.contains('instagram')) return Icons.camera_alt_outlined;
+    if (host.contains('facebook')) return Icons.facebook;
+    if (host.contains('t.me') || host.contains('telegram')) return Icons.send_outlined;
+    return Icons.link;
   }
 
   @override
   Widget build(BuildContext context) {
     final email = SessionService.instance.user?.email ?? 'user@example.com';
 
-    return HoverScale(
-      child: GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with Add button
-            Row(
-              children: [
-                Text('Contact',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: _kHeading, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                Tooltip(
-                  message: 'Add link',
-                  child: ElevatedButton.icon(
-                    onPressed: () => _addOrEdit(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add link'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Primary rows
-            _ClickableRow(
-              icon: Icons.email_outlined,
-              label: 'Email',
-              value: email,
-              onTap: () => _open('mailto:$email'),
-            ),
-            const SizedBox(height: 8),
-            const _ContactRow(
-              icon: Icons.location_on_outlined,
-              label: 'Location',
-              value: 'Remote / Worldwide',
-            ),
-            const SizedBox(height: 14),
-
-            // Links grid
-            if (_links.isNotEmpty)
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: List.generate(_links.length, (i) {
-                  final l = _links[i];
-                  return _LinkPill(
-                    link: l,
-                    onOpen: () => _open(l.url),
-                    onEdit: () => _addOrEdit(initial: l, index: i),
-                    onRemove: () => setState(() => _links.removeAt(i)),
-                  );
-                }),
-              )
-            else
-              const Text(
-                'No links added yet. Use “Add link” to include Instagram, LinkedIn, GitHub, website, etc.',
-                style: TextStyle(color: _kMuted),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Small pill UI for a social link
-class _LinkPill extends StatelessWidget {
-  final _SocialLink link;
-  final VoidCallback onOpen;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
-
-  const _LinkPill({
-    required this.link,
-    required this.onOpen,
-    required this.onEdit,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tint = _tintForKind(link.kind);
-    return Material(
-      color: tint.withValues(alpha: 0.08),
-      shape: StadiumBorder(
-        side: BorderSide(color: tint.withValues(alpha: 0.35), width: 1),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(_iconForKind(link.kind), size: 18, color: tint),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 180),
-                child: Text(
-                  link.label.isNotEmpty ? link.label : _labelForKind(link.kind),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _kHeading,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.open_in_new_rounded, size: 16, color: tint.withValues(alpha: .8)),
-              const SizedBox(width: 4),
-              PopupMenuButton<String>(
-                tooltip: 'More',
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'remove', child: Text('Remove')),
-                ],
-                onSelected: (v) => v == 'edit' ? onEdit() : onRemove(),
-                icon: Icon(Icons.more_vert, size: 18, color: tint.withValues(alpha: .8)),
-                padding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Editor dialog for adding/editing a social link
-class _LinkEditorDialog extends StatefulWidget {
-  final _SocialLink? initial;
-  const _LinkEditorDialog({this.initial});
-
-  @override
-  State<_LinkEditorDialog> createState() => _LinkEditorDialogState();
-}
-
-class _LinkEditorDialogState extends State<_LinkEditorDialog> {
-  late final TextEditingController _label =
-  TextEditingController(text: widget.initial?.label ?? '');
-  late final TextEditingController _url =
-  TextEditingController(text: widget.initial?.url ?? '');
-  final _formKey = GlobalKey<FormState>();
-
-  String _normalize(String raw) {
-    if (raw.isEmpty) return '';
-    final t = raw.trim();
-    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('mailto:')) return t;
-    if (t.contains('@') && !t.contains(' ')) return 'mailto:$t';
-    return 'https://$t';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final previewKind = _kindFor(_url.text);
-    final tint = _tintForKind(previewKind);
-
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(_iconForKind(previewKind), color: tint),
-          const SizedBox(width: 8),
-          Text(widget.initial == null ? 'Add link' : 'Edit link'),
+    Widget content;
+    if (_loading) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _SkeletonBar(width: 160, height: 20),
+          SizedBox(height: 12),
+          _SkeletonBar(width: double.infinity, height: 36),
         ],
-      ),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      );
+    } else if (_error != null) {
+      content = Row(
+        children: [
+          Expanded(child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+          TextButton(onPressed: _loadLinks, child: const Text('Retry')),
+        ],
+      );
+    } else {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              TextFormField(
-                controller: _label,
-                decoration: const InputDecoration(
-                  labelText: 'Label (optional)',
-                  hintText: 'e.g. Instagram',
+              Text('Contact',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: _kHeading, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Tooltip(
+                message: 'Add link',
+                child: ElevatedButton.icon(
+                  onPressed: () => _showLinkDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add link'),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _url,
-                decoration: const InputDecoration(
-                  labelText: 'URL / handle',
-                  hintText: 'e.g. instagram.com/yourname or your@email.com',
-                ),
-                onChanged: (_) => setState(() {}),
-                validator: (v) {
-                  final s = (v ?? '').trim();
-                  if (s.isEmpty) return 'Please enter a URL or email';
-                  return null;
-                },
               ),
             ],
           ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () {
-            if (!_formKey.currentState!.validate()) return;
-            final url = _normalize(_url.text);
-            final link = _SocialLink(
-              label: _label.text.trim(),
-              url: url,
-              kind: _kindFor(url),
-            );
-            Navigator.pop(context, link);
-          },
-          child: const Text('Save'),
-        ),
-      ],
+          const SizedBox(height: 12),
+          _ClickableRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: email,
+            onTap: () => _openLink('mailto:$email'),
+          ),
+          const SizedBox(height: 8),
+          const _ContactRow(
+            icon: Icons.location_on_outlined,
+            label: 'Location',
+            value: 'Remote / Worldwide',
+          ),
+          const SizedBox(height: 14),
+          if (_links.isEmpty)
+            const Text('No links yet — Add link', style: TextStyle(color: _kMuted))
+          else
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              // ✅ Explicit type + GestureDetector for long-press edit
+              children: _links.map<Widget>((link) {
+                return GestureDetector(
+                  onLongPress: () => _showLinkDialog(existing: link),
+                  child: InputChip(
+                    label: Text(link.label),
+                    avatar: Icon(_iconFor(link)),
+                    onPressed: () => _openLink(link.url),
+                    onDeleted: () => _confirmDelete(link),
+                    deleteIcon: const Icon(Icons.delete_outline),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      );
+    }
+
+    return HoverScale(
+      child: GlassCard(child: content),
     );
   }
 }
 
-/// Social link model
-class _SocialLink {
-  final String label;
-  final String url;
-  final _SocialKind kind;
-
-  _SocialLink({required this.label, required this.url, required this.kind});
-  factory _SocialLink.auto({required String label, required String url}) =>
-      _SocialLink(label: label, url: url, kind: _kindFor(url));
-}
-
-enum _SocialKind {
-  website,
-  instagram,
-  facebook,
-  twitterX,
-  linkedin,
-  github,
-  youtube,
-  dribbble,
-  behance,
-  medium,
-  whatsapp,
-  telegram,
-  tiktok,
-  email,
-}
-
-_SocialKind _kindFor(String url) {
-  final u = url.toLowerCase();
-  if (u.startsWith('mailto:')) return _SocialKind.email;
-  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
-  if (host.contains('instagram')) return _SocialKind.instagram;
-  if (host.contains('facebook')) return _SocialKind.facebook;
-  if (host.contains('twitter') || host.contains('x.com')) return _SocialKind.twitterX;
-  if (host.contains('linkedin')) return _SocialKind.linkedin;
-  if (host.contains('github')) return _SocialKind.github;
-  if (host.contains('youtube') || host.contains('youtu.be')) return _SocialKind.youtube;
-  if (host.contains('dribbble')) return _SocialKind.dribbble;
-  if (host.contains('behance')) return _SocialKind.behance;
-  if (host.contains('medium')) return _SocialKind.medium;
-  if (host.contains('whatsapp')) return _SocialKind.whatsapp;
-  if (host.contains('telegram')) return _SocialKind.telegram;
-  if (host.contains('tiktok')) return _SocialKind.tiktok;
-  return _SocialKind.website;
-}
-
-IconData _iconForKind(_SocialKind k) {
-  switch (k) {
-    case _SocialKind.instagram:
-      return Icons.camera_alt_outlined;
-    case _SocialKind.facebook:
-      return Icons.facebook;
-    case _SocialKind.twitterX:
-      return Icons.alternate_email;
-    case _SocialKind.linkedin:
-      return Icons.work_outline;
-    case _SocialKind.github:
-      return Icons.code;
-    case _SocialKind.youtube:
-      return Icons.ondemand_video;
-    case _SocialKind.dribbble:
-      return Icons.brush_outlined;
-    case _SocialKind.behance:
-      return Icons.palette_outlined;
-    case _SocialKind.medium:
-      return Icons.article_outlined;
-    case _SocialKind.whatsapp:
-      return Icons.chat_bubble_outline;
-    case _SocialKind.telegram:
-      return Icons.send_outlined;
-    case _SocialKind.tiktok:
-      return Icons.music_note;
-    case _SocialKind.email:
-      return Icons.email_outlined;
-    case _SocialKind.website:
-    default:
-      return Icons.language_outlined;
-  }
-}
-
-Color _tintForKind(_SocialKind k) {
-  switch (k) {
-    case _SocialKind.instagram:
-      return const Color(0xFFE1306C);
-    case _SocialKind.facebook:
-      return const Color(0xFF1877F2);
-    case _SocialKind.twitterX:
-      return const Color(0xFF1D9BF0);
-    case _SocialKind.linkedin:
-      return const Color(0xFF0A66C2);
-    case _SocialKind.github:
-      return const Color(0xFF24292E);
-    case _SocialKind.youtube:
-      return const Color(0xFFFF0000);
-    case _SocialKind.dribbble:
-      return const Color(0xFFEA4C89);
-    case _SocialKind.behance:
-      return const Color(0xFF1769FF);
-    case _SocialKind.medium:
-      return const Color(0xFF12100E);
-    case _SocialKind.whatsapp:
-      return const Color(0xFF25D366);
-    case _SocialKind.telegram:
-      return const Color(0xFF229ED9);
-    case _SocialKind.tiktok:
-      return const Color(0xFF010101);
-    case _SocialKind.email:
-      return _kIndigo;
-    case _SocialKind.website:
-    default:
-      return _kTeal;
-  }
-}
-
-String _labelForKind(_SocialKind k) {
-  switch (k) {
-    case _SocialKind.instagram:
-      return 'Instagram';
-    case _SocialKind.facebook:
-      return 'Facebook';
-    case _SocialKind.twitterX:
-      return 'Twitter/X';
-    case _SocialKind.linkedin:
-      return 'LinkedIn';
-    case _SocialKind.github:
-      return 'GitHub';
-    case _SocialKind.youtube:
-      return 'YouTube';
-    case _SocialKind.dribbble:
-      return 'Dribbble';
-    case _SocialKind.behance:
-      return 'Behance';
-    case _SocialKind.medium:
-      return 'Medium';
-    case _SocialKind.whatsapp:
-      return 'WhatsApp';
-    case _SocialKind.telegram:
-      return 'Telegram';
-    case _SocialKind.tiktok:
-      return 'TikTok';
-    case _SocialKind.email:
-      return 'Email';
-    case _SocialKind.website:
-    default:
-      return 'Website';
-  }
-}
-
+// ---------- Recent Activity ----------
 class _RecentActivitySection extends StatelessWidget {
   const _RecentActivitySection();
   @override
@@ -1967,7 +1813,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
 }
 
 // A safer Image.network with URL normalization and simple load/error hooks.
-// Shows a placeholder (e.g., shimmer) ONLY while loading; nothing once loaded.
+// Shows a placeholder (e.g., shimmer) ONLY while loading; after load, show the image.
 class _SafeNetworkImage extends StatefulWidget {
   final String url;
   final BoxFit fit;
@@ -2009,10 +1855,8 @@ class _SafeNetworkImageState extends State<_SafeNetworkImage> {
       fit: widget.fit,
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,
-      // While loading: show placeholder; after load, return the child (no shimmer).
       loadingBuilder: (ctx, child, loadingProgress) {
         if (loadingProgress == null) {
-          // Fully loaded
           WidgetsBinding.instance.addPostFrameCallback((_) {
             widget.onLoaded?.call();
           });
