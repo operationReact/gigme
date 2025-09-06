@@ -771,37 +771,432 @@ class _AboutSection extends StatelessWidget {
   }
 }
 
-class _ContactSection extends StatelessWidget {
+/// ------------------------------------------------------------
+/// CONTACT: Editable social links with smart icons + quick actions
+/// ------------------------------------------------------------
+class _ContactSection extends StatefulWidget {
   const _ContactSection();
   @override
+  State<_ContactSection> createState() => _ContactSectionState();
+}
+
+class _ContactSectionState extends State<_ContactSection> {
+  final List<_SocialLink> _links = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed with a website if present; else an example
+    final website = 'portfolio.example.com';
+    _links.add(_SocialLink.auto(label: 'Website', url: _ensureUrl(website)));
+  }
+
+  static String _ensureUrl(String raw) {
+    if (raw.isEmpty) return '';
+    final t = raw.trim();
+    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('mailto:')) {
+      return t;
+    }
+    // Simple heuristic: email-like
+    if (t.contains('@') && !t.contains(' ')) {
+      return 'mailto:$t';
+    }
+    return 'https://$t';
+  }
+
+  Future<void> _addOrEdit({_SocialLink? initial, int? index}) async {
+    final result = await showDialog<_SocialLink>(
+      context: context,
+      builder: (_) => _LinkEditorDialog(initial: initial),
+    );
+    if (result == null) return;
+    setState(() {
+      if (index != null) {
+        _links[index] = result;
+      } else {
+        _links.add(result);
+      }
+    });
+  }
+
+  Future<void> _open(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final email = SessionService.instance.user?.email ?? 'user@example.com';
+
     return HoverScale(
       child: GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Contact',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: _kHeading, fontWeight: FontWeight.w600)),
+            // Header with Add button
+            Row(
+              children: [
+                Text('Contact',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: _kHeading, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Tooltip(
+                  message: 'Add link',
+                  child: ElevatedButton.icon(
+                    onPressed: () => _addOrEdit(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add link'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
-            _ContactRow(
-                icon: Icons.email_outlined,
-                label: 'Email',
-                value: SessionService.instance.user?.email ?? 'user@example.com'),
+
+            // Primary rows
+            _ClickableRow(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              value: email,
+              onTap: () => _open('mailto:$email'),
+            ),
             const SizedBox(height: 8),
             const _ContactRow(
-                icon: Icons.location_on_outlined,
-                label: 'Location',
-                value: 'Remote / Worldwide'),
-            const SizedBox(height: 8),
-            const _ContactRow(
-                icon: Icons.language_outlined,
-                label: 'Website',
-                value: 'portfolio.example.com'),
+              icon: Icons.location_on_outlined,
+              label: 'Location',
+              value: 'Remote / Worldwide',
+            ),
+            const SizedBox(height: 14),
+
+            // Links grid
+            if (_links.isNotEmpty)
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: List.generate(_links.length, (i) {
+                  final l = _links[i];
+                  return _LinkPill(
+                    link: l,
+                    onOpen: () => _open(l.url),
+                    onEdit: () => _addOrEdit(initial: l, index: i),
+                    onRemove: () => setState(() => _links.removeAt(i)),
+                  );
+                }),
+              )
+            else
+              const Text(
+                'No links added yet. Use “Add link” to include Instagram, LinkedIn, GitHub, website, etc.',
+                style: TextStyle(color: _kMuted),
+              ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Small pill UI for a social link
+class _LinkPill extends StatelessWidget {
+  final _SocialLink link;
+  final VoidCallback onOpen;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
+
+  const _LinkPill({
+    required this.link,
+    required this.onOpen,
+    required this.onEdit,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = _tintForKind(link.kind);
+    return Material(
+      color: tint.withValues(alpha: 0.08),
+      shape: StadiumBorder(
+        side: BorderSide(color: tint.withValues(alpha: 0.35), width: 1),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_iconForKind(link.kind), size: 18, color: tint),
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Text(
+                  link.label.isNotEmpty ? link.label : _labelForKind(link.kind),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _kHeading,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.open_in_new_rounded, size: 16, color: tint.withValues(alpha: .8)),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                tooltip: 'More',
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'remove', child: Text('Remove')),
+                ],
+                onSelected: (v) => v == 'edit' ? onEdit() : onRemove(),
+                icon: Icon(Icons.more_vert, size: 18, color: tint.withValues(alpha: .8)),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Editor dialog for adding/editing a social link
+class _LinkEditorDialog extends StatefulWidget {
+  final _SocialLink? initial;
+  const _LinkEditorDialog({this.initial});
+
+  @override
+  State<_LinkEditorDialog> createState() => _LinkEditorDialogState();
+}
+
+class _LinkEditorDialogState extends State<_LinkEditorDialog> {
+  late final TextEditingController _label =
+  TextEditingController(text: widget.initial?.label ?? '');
+  late final TextEditingController _url =
+  TextEditingController(text: widget.initial?.url ?? '');
+  final _formKey = GlobalKey<FormState>();
+
+  String _normalize(String raw) {
+    if (raw.isEmpty) return '';
+    final t = raw.trim();
+    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('mailto:')) return t;
+    if (t.contains('@') && !t.contains(' ')) return 'mailto:$t';
+    return 'https://$t';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final previewKind = _kindFor(_url.text);
+    final tint = _tintForKind(previewKind);
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(_iconForKind(previewKind), color: tint),
+          const SizedBox(width: 8),
+          Text(widget.initial == null ? 'Add link' : 'Edit link'),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _label,
+                decoration: const InputDecoration(
+                  labelText: 'Label (optional)',
+                  hintText: 'e.g. Instagram',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _url,
+                decoration: const InputDecoration(
+                  labelText: 'URL / handle',
+                  hintText: 'e.g. instagram.com/yourname or your@email.com',
+                ),
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  final s = (v ?? '').trim();
+                  if (s.isEmpty) return 'Please enter a URL or email';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            final url = _normalize(_url.text);
+            final link = _SocialLink(
+              label: _label.text.trim(),
+              url: url,
+              kind: _kindFor(url),
+            );
+            Navigator.pop(context, link);
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Social link model
+class _SocialLink {
+  final String label;
+  final String url;
+  final _SocialKind kind;
+
+  _SocialLink({required this.label, required this.url, required this.kind});
+  factory _SocialLink.auto({required String label, required String url}) =>
+      _SocialLink(label: label, url: url, kind: _kindFor(url));
+}
+
+enum _SocialKind {
+  website,
+  instagram,
+  facebook,
+  twitterX,
+  linkedin,
+  github,
+  youtube,
+  dribbble,
+  behance,
+  medium,
+  whatsapp,
+  telegram,
+  tiktok,
+  email,
+}
+
+_SocialKind _kindFor(String url) {
+  final u = url.toLowerCase();
+  if (u.startsWith('mailto:')) return _SocialKind.email;
+  final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+  if (host.contains('instagram')) return _SocialKind.instagram;
+  if (host.contains('facebook')) return _SocialKind.facebook;
+  if (host.contains('twitter') || host.contains('x.com')) return _SocialKind.twitterX;
+  if (host.contains('linkedin')) return _SocialKind.linkedin;
+  if (host.contains('github')) return _SocialKind.github;
+  if (host.contains('youtube') || host.contains('youtu.be')) return _SocialKind.youtube;
+  if (host.contains('dribbble')) return _SocialKind.dribbble;
+  if (host.contains('behance')) return _SocialKind.behance;
+  if (host.contains('medium')) return _SocialKind.medium;
+  if (host.contains('whatsapp')) return _SocialKind.whatsapp;
+  if (host.contains('telegram')) return _SocialKind.telegram;
+  if (host.contains('tiktok')) return _SocialKind.tiktok;
+  return _SocialKind.website;
+}
+
+IconData _iconForKind(_SocialKind k) {
+  switch (k) {
+    case _SocialKind.instagram:
+      return Icons.camera_alt_outlined;
+    case _SocialKind.facebook:
+      return Icons.facebook;
+    case _SocialKind.twitterX:
+      return Icons.alternate_email;
+    case _SocialKind.linkedin:
+      return Icons.work_outline;
+    case _SocialKind.github:
+      return Icons.code;
+    case _SocialKind.youtube:
+      return Icons.ondemand_video;
+    case _SocialKind.dribbble:
+      return Icons.brush_outlined;
+    case _SocialKind.behance:
+      return Icons.palette_outlined;
+    case _SocialKind.medium:
+      return Icons.article_outlined;
+    case _SocialKind.whatsapp:
+      return Icons.chat_bubble_outline;
+    case _SocialKind.telegram:
+      return Icons.send_outlined;
+    case _SocialKind.tiktok:
+      return Icons.music_note;
+    case _SocialKind.email:
+      return Icons.email_outlined;
+    case _SocialKind.website:
+    default:
+      return Icons.language_outlined;
+  }
+}
+
+Color _tintForKind(_SocialKind k) {
+  switch (k) {
+    case _SocialKind.instagram:
+      return const Color(0xFFE1306C);
+    case _SocialKind.facebook:
+      return const Color(0xFF1877F2);
+    case _SocialKind.twitterX:
+      return const Color(0xFF1D9BF0);
+    case _SocialKind.linkedin:
+      return const Color(0xFF0A66C2);
+    case _SocialKind.github:
+      return const Color(0xFF24292E);
+    case _SocialKind.youtube:
+      return const Color(0xFFFF0000);
+    case _SocialKind.dribbble:
+      return const Color(0xFFEA4C89);
+    case _SocialKind.behance:
+      return const Color(0xFF1769FF);
+    case _SocialKind.medium:
+      return const Color(0xFF12100E);
+    case _SocialKind.whatsapp:
+      return const Color(0xFF25D366);
+    case _SocialKind.telegram:
+      return const Color(0xFF229ED9);
+    case _SocialKind.tiktok:
+      return const Color(0xFF010101);
+    case _SocialKind.email:
+      return _kIndigo;
+    case _SocialKind.website:
+    default:
+      return _kTeal;
+  }
+}
+
+String _labelForKind(_SocialKind k) {
+  switch (k) {
+    case _SocialKind.instagram:
+      return 'Instagram';
+    case _SocialKind.facebook:
+      return 'Facebook';
+    case _SocialKind.twitterX:
+      return 'Twitter/X';
+    case _SocialKind.linkedin:
+      return 'LinkedIn';
+    case _SocialKind.github:
+      return 'GitHub';
+    case _SocialKind.youtube:
+      return 'YouTube';
+    case _SocialKind.dribbble:
+      return 'Dribbble';
+    case _SocialKind.behance:
+      return 'Behance';
+    case _SocialKind.medium:
+      return 'Medium';
+    case _SocialKind.whatsapp:
+      return 'WhatsApp';
+    case _SocialKind.telegram:
+      return 'Telegram';
+    case _SocialKind.tiktok:
+      return 'TikTok';
+    case _SocialKind.email:
+      return 'Email';
+    case _SocialKind.website:
+    default:
+      return 'Website';
   }
 }
 
@@ -2080,6 +2475,48 @@ class _ContactRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Row(children: [Icon(icon), const SizedBox(width: 8), Text('$label: $value')]);
+}
+
+class _ClickableRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  const _ClickableRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon),
+            const SizedBox(width: 8),
+            Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+            Flexible(
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  decoration: TextDecoration.underline,
+                  color: _kIndigo,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // --- STUBS / PREVIEWS ---
