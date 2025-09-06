@@ -886,35 +886,22 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
   List<HomePortfolioDto> _items = [];
   final List<String> _mediaTypes = ['IMAGE', 'VIDEO', 'DOCUMENT'];
 
-  // NEW: auto-fetch once after HomeData is ready, and when user changes
-  bool _didAutoFetch = false;
-  int? _lastUserId;
+  int? _lastUserId; // so we refetch when HomeData becomes available
 
   @override
   void initState() {
     super.initState();
-    // This shows skeletons immediately; real fetch will happen again once HomeData is available.
-    _fetchItems();
+    _fetchItems(); // first attempt (may return empty if HomeData not ready)
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // When navigating here after sign-in, HomeData may be null in initState and become available later.
-    // Auto-fetch once when HomeData finishes loading, and refetch if the signed-in user changes.
-    final home = HomeData.of(context);
-    final userId = home.data?.userId;
-
-    if (!_didAutoFetch && !home.loading && userId != null) {
-      _didAutoFetch = true;
-      _lastUserId = userId;
-      _fetchItems();
-      return;
-    }
-
-    if (userId != null && userId != _lastUserId) {
-      _lastUserId = userId;
-      _fetchItems();
+    final d = HomeData.of(context).data;
+    final uid = d?.userId;
+    if (uid != null && uid != _lastUserId) {
+      _lastUserId = uid;
+      _fetchItems(); // refetch once the DTO arrives after sign-in
     }
   }
 
@@ -922,19 +909,16 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
     setState(() {
       _loading = true;
     });
-
     final home = HomeData.of(context);
-    // If HomeData is not ready yet, don't error—just stop the spinner and keep placeholders/empty.
-    if (home.loading || home.data == null) {
+    final d = home.data;
+    if (d == null) {
       setState(() {
         _items = [];
         _loading = false;
       });
       return;
     }
-
     try {
-      final d = home.data!;
       final items = await HomeApi().getPortfolioItems(d.userId, mediaType: _mediaTypes[_tabIndex]);
       if (mounted) {
         setState(() {
@@ -1031,9 +1015,6 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
 
   @override
   Widget build(BuildContext context) {
-    final home = HomeData.of(context);
-    final d = home.data;
-
     Widget _segmentedTabs() {
       final labels = const ['Images', 'Videos', 'Documents'];
       final gradients = const [
@@ -1134,7 +1115,7 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         }));
 
         while (tiles.length < cols * 2) {
-          tiles.add(SizedBox(width: w, child: _EmptyPortfolioCard(onTap: () {})));
+          tiles.add(SizedBox(width: w, child: const _EmptyPortfolioCard()));
         }
 
         return Wrap(spacing: gap, runSpacing: gap, children: tiles);
@@ -1351,7 +1332,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
     final borderRadius = BorderRadius.circular(18);
     final heroTag = 'portfolio_${widget.item.id}';
 
-    // Media layer: gradient+icon for doc without thumbnail; otherwise CachedNetworkImage with shimmer.
+    // Media layer: either gradient+icon for doc without thumbnail, or CachedNetworkImage (with Shimmer placeholder)
     Widget mediaLayer;
     final isDoc = _kind == _MediaKind.document;
     final thumbEmpty = widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty;
@@ -1418,163 +1399,167 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
       }
     }
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          boxShadow: _hover
-              ? const [BoxShadow(color: Color(0x22000000), blurRadius: 20, offset: Offset(0, 10))]
-              : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
-          gradient: LinearGradient(
-            colors: _grad.map((c) => c.withValues(alpha: 0.18)).toList(),
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    // IMPORTANT: give the tile HEIGHT using AspectRatio so it renders
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            boxShadow: _hover
+                ? const [BoxShadow(color: Color(0x22000000), blurRadius: 20, offset: Offset(0, 10))]
+                : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            gradient: LinearGradient(
+              colors: _grad.map((c) => c.withValues(alpha: 0.18)).toList(),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: borderRadius,
-          child: Stack(
-            children: [
-              // media preview (wrapped in Hero)
-              Positioned.fill(
-                child: Hero(tag: heroTag, child: mediaLayer),
-              ),
+          child: ClipRRect(
+            borderRadius: borderRadius,
+            child: Stack(
+              children: [
+                // media preview (wrapped in Hero)
+                Positioned.fill(
+                  child: Hero(tag: heroTag, child: mediaLayer),
+                ),
 
-              // overlay gradient for readability
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.05),
-                        Colors.black.withValues(alpha: 0.20),
-                        Colors.black.withValues(alpha: 0.45),
+                // overlay gradient for readability
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.05),
+                          Colors.black.withValues(alpha: 0.20),
+                          Colors.black.withValues(alpha: 0.45),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // video play icon overlay (visible)
+                if (_kind == _MediaKind.video)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          size: 56,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // animated shine
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _shineCtrl,
+                      builder: (_, __) {
+                        final t = _shineCtrl.value;
+                        return Transform.translate(
+                          offset: Offset((t * 2 - 1) * 200, 0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.0),
+                                  Colors.white.withValues(alpha: 0.14),
+                                  Colors.white.withValues(alpha: 0.0),
+                                ],
+                                stops: const [0.35, 0.5, 0.65],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                // top-right type chip
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_typeChipIcon, size: 16, color: _kHeading),
+                        const SizedBox(width: 6),
+                        Text(
+                          _kind == _MediaKind.image ? 'Image' : _kind == _MediaKind.video ? 'Video' : 'Doc',
+                          style: const TextStyle(
+                            color: _kHeading,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              ),
 
-              // video play icon overlay (visible)
-              if (_kind == _MediaKind.video)
-                const Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Icon(
-                        Icons.play_circle_fill_rounded,
-                        size: 56,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // animated shine
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: AnimatedBuilder(
-                    animation: _shineCtrl,
-                    builder: (_, __) {
-                      final t = _shineCtrl.value;
-                      return Transform.translate(
-                        offset: Offset((t * 2 - 1) * 200, 0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(alpha: 0.14),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                              stops: const [0.35, 0.5, 0.65],
-                            ),
+                // title + actions
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 10,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          (widget.item.title.isEmpty ? 'Untitled' : widget.item.title),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              // top-right type chip
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white, width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(_typeChipIcon, size: 16, color: _kHeading),
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionIcon(
+                        icon: Icons.open_in_new_rounded,
+                        onTap: _openAccordingToType,
+                      ),
                       const SizedBox(width: 6),
-                      Text(
-                        _kind == _MediaKind.image ? 'Image' : _kind == _MediaKind.video ? 'Video' : 'Doc',
-                        style: const TextStyle(
-                          color: _kHeading,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
+                      _ActionIcon(
+                        icon: _kind == _MediaKind.document ? Icons.download_rounded : Icons.fullscreen_rounded,
+                        onTap: _openAccordingToType,
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              // title + actions
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 10,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        (widget.item.title.isEmpty ? 'Untitled' : widget.item.title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.5,
-                          shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _ActionIcon(
-                      icon: Icons.open_in_new_rounded,
-                      onTap: _openAccordingToType,
-                    ),
-                    const SizedBox(width: 6),
-                    _ActionIcon(
-                      icon: _kind == _MediaKind.document ? Icons.download_rounded : Icons.fullscreen_rounded,
-                      onTap: _openAccordingToType,
-                    ),
-                  ],
+                // full-card tap
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(onTap: _openAccordingToType),
+                  ),
                 ),
-              ),
-
-              // full-card tap
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(onTap: _openAccordingToType),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1881,16 +1866,14 @@ class _LargeAddProjectButton extends StatelessWidget {
 }
 
 class _EmptyPortfolioCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EmptyPortfolioCard({super.key, required this.onTap});
+  const _EmptyPortfolioCard({super.key});
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 160,
+  Widget build(BuildContext context) => AspectRatio(
+    aspectRatio: 4 / 3,
     child: Card(
       child: InkWell(
-        onTap: onTap,
-        child: const SizedBox(
-            width: 100, height: 80, child: Center(child: Icon(Icons.add))),
+        onTap: () {},
+        child: const Center(child: Icon(Icons.add)),
       ),
     ),
   );
@@ -2175,7 +2158,7 @@ class ImagePreviewDialog extends StatelessWidget {
   }
 }
 
-// New: Stateful VideoPreviewDialog using video_player + chewie
+// Stateful VideoPreviewDialog using video_player + chewie
 class VideoPreviewDialog extends StatefulWidget {
   final HomePortfolioDto item;
   const VideoPreviewDialog({super.key, required this.item});
