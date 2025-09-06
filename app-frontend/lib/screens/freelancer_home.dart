@@ -16,7 +16,8 @@ import '../main.dart';
 import '../services/s3_service.dart';
 import 'package:http/http.dart' as http;
 import '../env.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+// REMOVED: cached_network_image (web can be finicky with CORS + decoding for some S3/CF setups)
+// import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -1115,7 +1116,16 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         }));
 
         while (tiles.length < cols * 2) {
-          tiles.add(SizedBox(width: w, child: const _EmptyPortfolioCard()));
+          tiles.add(
+            SizedBox(
+              width: w,
+              child: _EmptyPortfolioCard(
+                onTap: () {
+                  if (!_uploading) _pickAndUploadFile(); // respects current tab: IMAGE/VIDEO/DOCUMENT
+                },
+              ),
+            ),
+          );
         }
 
         return Wrap(spacing: gap, runSpacing: gap, children: tiles);
@@ -1127,8 +1137,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         return Wrap(
           spacing: 16,
           runSpacing: 16,
-          children: List.generate(6,
-                  (i) => const SizedBox(width: 160, height: 120, child: _Shimmer())),
+          children: List.generate(
+              6, (i) => const SizedBox(width: 160, height: 120, child: _Shimmer())),
         );
       }
       if (_items.isEmpty) {
@@ -1215,6 +1225,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
     with SingleTickerProviderStateMixin {
   bool _hover = false;
   bool _previewErrorShown = false;
+  bool _mediaLoaded = false;
 
   late final AnimationController _shineCtrl =
   AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))
@@ -1332,7 +1343,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
     final borderRadius = BorderRadius.circular(18);
     final heroTag = 'portfolio_${widget.item.id}';
 
-    // Media layer: either gradient+icon for doc without thumbnail, or CachedNetworkImage (with Shimmer placeholder)
+    // Media layer: either gradient+icon for doc without thumbnail, or SAFE Image.network (with Shimmer only while loading)
     Widget mediaLayer;
     final isDoc = _kind == _MediaKind.document;
     final thumbEmpty = widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty;
@@ -1351,40 +1362,20 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
         ),
       );
     } else {
-      try {
-        mediaLayer = CachedNetworkImage(
-          imageUrl: (widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty)
-              ? widget.item.fileUrl
-              : widget.item.thumbnailUrl!,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => const _Shimmer(),
-          errorWidget: (_, __, ___) {
-            if (!_previewErrorShown && mounted) {
-              _previewErrorShown = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to load preview')),
-                  );
-                }
-              });
-            }
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDoc ? _docGrad : _grad,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Center(
-                child: Icon(_kindIcon, color: Colors.white70, size: 36),
-              ),
-            );
-          },
-        );
-      } catch (_) {
-        mediaLayer = Container(
+      final imageUrl =
+      (widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty)
+          ? widget.item.fileUrl
+          : widget.item.thumbnailUrl!;
+      mediaLayer = _SafeNetworkImage(
+        url: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: const _Shimmer(),
+        onLoaded: () {
+          if (!_mediaLoaded && mounted) {
+            setState(() => _mediaLoaded = true);
+          }
+        },
+        errorFallback: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDoc ? _docGrad : _grad,
@@ -1395,8 +1386,20 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           child: Center(
             child: Icon(_kindIcon, color: Colors.white70, size: 36),
           ),
-        );
-      }
+        ),
+        onErrorOnce: () {
+          if (!_previewErrorShown && mounted) {
+            _previewErrorShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to load preview')),
+                );
+              }
+            });
+          }
+        },
+      );
     }
 
     // IMPORTANT: give the tile HEIGHT using AspectRatio so it renders
@@ -1459,34 +1462,35 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     ),
                   ),
 
-                // animated shine
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _shineCtrl,
-                      builder: (_, __) {
-                        final t = _shineCtrl.value;
-                        return Transform.translate(
-                          offset: Offset((t * 2 - 1) * 200, 0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.0),
-                                  Colors.white.withValues(alpha: 0.14),
-                                  Colors.white.withValues(alpha: 0.0),
-                                ],
-                                stops: const [0.35, 0.5, 0.65],
+                // animated shine — now ONLY while loading (never after media is loaded)
+                if (!_mediaLoaded)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _shineCtrl,
+                        builder: (_, __) {
+                          final t = _shineCtrl.value;
+                          return Transform.translate(
+                            offset: Offset((t * 2 - 1) * 200, 0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.14),
+                                    Colors.white.withValues(alpha: 0.0),
+                                  ],
+                                  stops: const [0.35, 0.5, 0.65],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
 
                 // top-right type chip
                 Positioned(
@@ -1563,6 +1567,73 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           ),
         ),
       ),
+    );
+  }
+}
+
+// A safer Image.network with URL normalization and simple load/error hooks.
+// Shows a placeholder (e.g., shimmer) ONLY while loading; nothing once loaded.
+class _SafeNetworkImage extends StatefulWidget {
+  final String url;
+  final BoxFit fit;
+  final Widget? placeholder;
+  final Widget? errorFallback;
+  final VoidCallback? onLoaded;
+  final VoidCallback? onErrorOnce;
+
+  const _SafeNetworkImage({
+    required this.url,
+    this.fit = BoxFit.cover,
+    this.placeholder,
+    this.errorFallback,
+    this.onLoaded,
+    this.onErrorOnce,
+  });
+
+  @override
+  State<_SafeNetworkImage> createState() => _SafeNetworkImageState();
+}
+
+class _SafeNetworkImageState extends State<_SafeNetworkImage> {
+  bool _erroredOnce = false;
+
+  String _normalize(String u) {
+    // Encode spaces and odd chars; force https on web if possible
+    String v = Uri.encodeFull(u);
+    if (kIsWeb && v.startsWith('http://')) {
+      v = v.replaceFirst('http://', 'https://');
+    }
+    return v;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final src = _normalize(widget.url);
+    return Image.network(
+      src,
+      fit: widget.fit,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      // While loading: show placeholder; after load, return the child (no shimmer).
+      loadingBuilder: (ctx, child, loadingProgress) {
+        if (loadingProgress == null) {
+          // Fully loaded
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onLoaded?.call();
+          });
+          return child;
+        }
+        return widget.placeholder ?? const SizedBox.shrink();
+      },
+      errorBuilder: (ctx, err, stack) {
+        if (!_erroredOnce) {
+          _erroredOnce = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onErrorOnce?.call();
+          });
+        }
+        return widget.errorFallback ?? const SizedBox.shrink();
+      },
     );
   }
 }
@@ -1866,14 +1937,18 @@ class _LargeAddProjectButton extends StatelessWidget {
 }
 
 class _EmptyPortfolioCard extends StatelessWidget {
-  const _EmptyPortfolioCard({super.key});
+  final VoidCallback onTap;
+  const _EmptyPortfolioCard({super.key, required this.onTap});
+
   @override
   Widget build(BuildContext context) => AspectRatio(
     aspectRatio: 4 / 3,
     child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
-        onTap: () {},
-        child: const Center(child: Icon(Icons.add)),
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: const Center(child: Icon(Icons.add, size: 32)),
       ),
     ),
   );
@@ -2145,7 +2220,9 @@ class ImagePreviewDialog extends StatelessWidget {
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: Image.network(
-                  item.fileUrl,
+                  Uri.encodeFull(item.fileUrl.startsWith('http://') && kIsWeb
+                      ? item.fileUrl.replaceFirst('http://', 'https://')
+                      : item.fileUrl),
                   fit: BoxFit.contain,
                 ),
               ),
