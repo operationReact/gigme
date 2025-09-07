@@ -26,6 +26,11 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pdfx/pdfx.dart';
 
+// ✅ Social imports
+import '../sections/social_strip.dart';
+import '../sections/home_feed_preview.dart';
+import '../sections/who_to_follow.dart';
+
 // Brand palette constants
 const _kTeal = Color(0xFF00C2A8);
 const _kIndigo = Color(0xFF3B82F6);
@@ -167,6 +172,10 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
             SafeArea(
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
+                  // 🔧 USE the inner `ctx` that is under HomeData
+                  final home = HomeData.of(ctx);
+                  final uid = home.data?.userId;
+
                   final isWide = constraints.maxWidth >= 960;
                   final sidePadding = isWide ? 32.0 : 16.0;
                   return SingleChildScrollView(
@@ -185,14 +194,20 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                                 flex: 5,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: const [
-                                    _ProfileOverview(),
-                                    SizedBox(height: 20),
-                                    _AboutSection(),
-                                    SizedBox(height: 20),
-                                    _ContactSectionRemote(),
-                                    SizedBox(height: 20),
-                                    _RecentActivitySection(),
+                                  children: [
+                                    const _ProfileOverview(),
+                                    const SizedBox(height: 12),
+                                    if (uid != null) SocialStrip(userId: uid),
+                                    const SizedBox(height: 20),
+                                    if (uid != null) ...[
+                                      WhoToFollow(userId: uid),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    const _AboutSection(),
+                                    const SizedBox(height: 20),
+                                    const _ContactSectionRemote(),
+                                    const SizedBox(height: 20),
+                                    const _RecentActivitySection(),
                                   ],
                                 ),
                               ),
@@ -207,13 +222,17 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                                     const SizedBox(height: 20),
                                     const _QuickActions(),
                                     const SizedBox(height: 20),
+                                    if (uid != null) ...[
+                                      HomeFeedPreview(viewerId: uid),
+                                      const SizedBox(height: 20),
+                                    ],
                                     const _PortfolioSection(),
                                     const SizedBox(height: 20),
                                     const _ActiveContracts(),
                                     const SizedBox(height: 20),
                                     const _Recommendations(),
                                     const SizedBox(height: 20),
-                                    _ScheduleMini(),
+                                    const _ScheduleMini(),
                                   ],
                                 ),
                               ),
@@ -221,11 +240,21 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                           )
                         else ...[
                           const _ProfileOverview(),
+                          const SizedBox(height: 12),
+                          if (uid != null) SocialStrip(userId: uid),
                           const SizedBox(height: 20),
+                          if (uid != null) ...[
+                            WhoToFollow(userId: uid),
+                            const SizedBox(height: 20),
+                          ],
                           const _StatsAndProgress(),
                           const SizedBox(height: 20),
                           const _QuickActions(),
                           const SizedBox(height: 20),
+                          if (uid != null) ...[
+                            HomeFeedPreview(viewerId: uid),
+                            const SizedBox(height: 20),
+                          ],
                           const _PortfolioSection(),
                           const SizedBox(height: 20),
                           const _AboutSection(),
@@ -238,7 +267,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                           const SizedBox(height: 20),
                           const _Recommendations(),
                           const SizedBox(height: 20),
-                          _ScheduleMini(),
+                          const _ScheduleMini(),
                         ],
                       ],
                     ),
@@ -297,7 +326,10 @@ class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)!);
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
   }
 
   @override
@@ -1021,7 +1053,6 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
             Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
-              // ✅ Explicit type + GestureDetector for long-press edit
               children: _links.map<Widget>((link) {
                 return GestureDetector(
                   onLongPress: () => _showLinkDialog(existing: link),
@@ -1133,7 +1164,7 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
   @override
   void initState() {
     super.initState();
-    _fetchItems(); // first attempt (may return empty if HomeData not ready)
+    // Intentionally do not read HomeData here
   }
 
   @override
