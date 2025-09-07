@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'api/auth_api.dart';
 import 'screens/sign_in_user.dart';
 import 'screens/sign_in_client.dart';
-import 'screens/profile_user.dart';
+import 'screens/edit_profile_user.dart';
 import 'screens/profile_client.dart';
 import 'screens/profile_freelancer.dart';
 import 'screens/register_freelancer.dart';
@@ -28,13 +28,6 @@ const _kHeading = Color(0xFF111827);
 const _kMuted = Color(0xFF6B7280);
 
 /// ===== Brand Logo (same widget used on freelancer home) ======================
-// ── Brand palette (keep yours as-is) ──
-// const _kTeal = Color(0xFF00C2A8);
-// const _kIndigo = Color(0xFF3B82F6);
-// const _kViolet = Color(0xFF7C3AED);
-// const _kHeading = Color(0xFF111827);
-// const _kMuted = Color(0xFF6B7280);
-
 class _GmwLogo extends StatelessWidget {
   final double markSize;
   final double fontSize;
@@ -77,13 +70,11 @@ class _GmwLogo extends StatelessWidget {
           style: TextStyle(color: head, fontWeight: FontWeight.w800),
         ),
       ]),
-      // Tighter leading + tiny tracking for a crisp logotype
       style: TextStyle(fontSize: fontSize, height: 1.0, letterSpacing: 0.2),
     );
 
-    // ✨ Refined tagline: tighter line height, subtle tracking, slight upward nudge
     final tagline = Padding(
-      padding: const EdgeInsets.only(top: 2), // visually tucks under the wordmark
+      padding: const EdgeInsets.only(top: 2),
       child: Text(
         'People Need People',
         textAlign: TextAlign.left,
@@ -93,10 +84,10 @@ class _GmwLogo extends StatelessWidget {
         ),
         style: TextStyle(
           color: (onDark ? Colors.white.withOpacity(0.92) : muted.withOpacity(0.92)),
-          fontSize: (fontSize * 0.46).clamp(10.0, 14.0), // scales with wordmark
+          fontSize: (fontSize * 0.46).clamp(10.0, 14.0),
           fontWeight: FontWeight.w600,
           letterSpacing: 0.35,
-          height: 1.05, // tightens baseline alignment
+          height: 1.05,
         ),
       ),
     );
@@ -416,8 +407,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                       final children = [
                                         _ActionCard(
                                           icon: Icons.person_outline,
-                                          title: 'I Am A Freelancer or Professional',
-                                          subtitle: 'Create a profile, showcase your skills, and get hired',
+                                          title: 'I am Freelancer or Professional',
+                                          subtitle: 'Find work and get paid',
                                           gradient: LinearGradient(colors: [cs.secondary, cs.tertiary]),
                                           heroTag: 'hero-freelancer',
                                           width: cardWidth,
@@ -434,7 +425,6 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                         ),
                                       ];
                                       return SingleChildScrollView(
-                                        // Allow scrolling when vertical space is tight to avoid RenderFlex overflow
                                         physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                                         child: ConstrainedBox(
                                           constraints: BoxConstraints(minHeight: constraints.maxHeight),
@@ -495,7 +485,7 @@ class _ActionCard extends StatefulWidget {
   final VoidCallback onTap;
   final String? heroTag;
   final double? width; // new responsive width
-  const _ActionCard({required this.icon, required this.title, required this.subtitle, required this.gradient, required this.onTap, this.heroTag, this.width});
+  const _ActionCard({super.key, required this.icon, required this.title, required this.subtitle, required this.gradient, required this.onTap, this.heroTag, this.width});
 
   @override
   State<_ActionCard> createState() => _ActionCardState();
@@ -521,7 +511,6 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
   }
 
   void _tick(){
-    // exponential smoothing toward target
     _tx += (_txTarget - _tx) * 0.12;
     _ty += (_tyTarget - _ty) * 0.12;
     if(mounted) setState((){});
@@ -535,8 +524,8 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
     final h = renderBox.size.height;
     final dx = (local.dx / w) * 2 - 1; // -1..1
     final dy = (local.dy / h) * 2 - 1; // -1..1
-    _txTarget = dx.clamp(-1,1); // horizontal moves rotateY
-    _tyTarget = dy.clamp(-1,1); // vertical moves rotateX
+    _txTarget = dx.clamp(-1,1);
+    _tyTarget = dy.clamp(-1,1);
   }
 
   @override
@@ -548,13 +537,61 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final hoverScale = 1.0 + (_hovered? 0.02 : 0.0) - (_pressed? 0.02 : 0.0);
-    const maxDeg = 8.0; // degrees
-    final rx = (-_ty) * (maxDeg * math.pi / 180); // invert so moving mouse down tilts card away
+    const maxDeg = 8.0;
+    final rx = (-_ty) * (maxDeg * math.pi / 180);
     final ry = (_tx) * (maxDeg * math.pi / 180);
     final shadowLift = _hovered ? -4.0 : 0.0;
     final blur = 16 + (_hovered? 10 : 0);
     final spread = _hovered? 2.0 : 0.5;
     final shadowColor = cs.tertiary.withOpacity(_hovered? 0.28 : 0.15);
+
+    // ——— Professional, lighter typography ———
+    final titleBase = Theme.of(context).textTheme.titleLarge?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w600,   // was w800
+      height: 1.15,
+      letterSpacing: 0.15,
+      fontSize: 20,                  // was 22
+      shadows: const [
+        Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1)),
+      ],
+    ) ??
+        const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          height: 1.15,
+          letterSpacing: 0.15,
+          fontSize: 20,
+          shadows: [Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1))],
+        );
+
+    final subtitleBase = Theme.of(context).textTheme.bodyLarge?.copyWith(
+      color: Colors.white.withOpacity(0.95),
+      fontWeight: FontWeight.w500,   // was w600
+      height: 1.35,
+      letterSpacing: 0.05,
+      fontSize: 14.5,                // was 15.5
+      shadows: const [
+        Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1)),
+      ],
+    ) ??
+        const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w500,
+          height: 1.35,
+          letterSpacing: 0.05,
+          fontSize: 14.5,
+          shadows: [Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1))],
+        );
+
+    // Subtle hover emphasis without getting heavier
+    final titleStyle = titleBase.copyWith(
+      letterSpacing: _hovered ? 0.18 : 0.15,
+      color: Colors.white.withOpacity(_hovered ? 1.0 : 0.98),
+    );
+    final subtitleStyle = subtitleBase.copyWith(
+      color: Colors.white.withOpacity(_hovered ? 0.98 : 0.92),
+    );
 
     Widget cardCore = Container(
       width: widget.width ?? 360,
@@ -580,9 +617,27 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(widget.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.9))),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    style: titleStyle,
+                    child: Text(
+                      widget.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    style: subtitleStyle,
+                    child: Text(
+                      widget.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -591,7 +646,6 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
       ),
     );
 
-    // Gradient sweep highlight overlay
     if(_hovered){
       cardCore = Stack(children:[
         cardCore,
@@ -602,7 +656,7 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
     }
 
     final matrix = Matrix4.identity()
-      ..setEntry(3, 2, 0.0016) // perspective
+      ..setEntry(3, 2, 0.0016)
       ..rotateX(rx)
       ..rotateY(ry);
 
@@ -660,9 +714,8 @@ class _ParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paintA = Paint()..color = colorA;
     final paintB = Paint()..color = colorB;
-    // Draw a few soft circles moving sinusoidally
     for (int i = 0; i < 24; i++) {
-      final phase = (i * 0.261799) + t * 6.2831853; // i*15deg + time
+      final phase = (i * 0.261799) + t * 6.2831853;
       final r = 10 + (i % 5) * 3;
       final x = size.width * (0.5 + 0.45 * math.cos(phase + i));
       final y = size.height * (0.5 + 0.45 * math.sin(phase * 0.9 + i * 0.3));
@@ -680,10 +733,9 @@ class _SweepHighlightPainter extends CustomPainter {
   const _SweepHighlightPainter({required this.progress});
   @override
   void paint(Canvas canvas, Size size) {
-    final p = progress; // loop
-    // Move highlight left->right then repeat
+    final p = progress;
     final x = size.width * p;
-    final halfSpan = size.width * 0.35; // width of highlight influence
+    final halfSpan = size.width * 0.35;
     final rect = Rect.fromLTWH(x - halfSpan, 0, halfSpan * 2, size.height);
     final gradient = LinearGradient(
       begin: Alignment.centerLeft,

@@ -29,18 +29,67 @@ public class FreelancerProfile {
     @Column(length = 500)
     private String imageUrl;
 
+    // New optional contact and profile fields
+    @Column(length = 160)
+    private String location;
+
+    @Column(length = 160)
+    private String contactEmail;
+
+    @Column(length = 40)
+    private String phone;
+
+    @Column(length = 300)
+    private String website;
+
+    @Column(length = 300)
+    private String linkedin;
+
+    @Column(length = 300)
+    private String github;
+
+    private Integer hourlyRateCents; // store minor units
+
+    @Column(length = 8)
+    private String currency; // ISO code e.g. USD
+
+    private Boolean available;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     protected FreelancerProfile() {}
 
-    public FreelancerProfile(UserAccount user, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
+    public FreelancerProfile(UserAccount user,
+                             String displayName,
+                             String professionalTitle,
+                             String bio,
+                             String skillsCsv,
+                             String imageUrl,
+                             String location,
+                             String contactEmail,
+                             String phone,
+                             String website,
+                             String linkedin,
+                             String github,
+                             Integer hourlyRateCents,
+                             String currency,
+                             Boolean available) {
         this.user = user;
         this.displayName = displayName;
         this.professionalTitle = professionalTitle;
         this.bio = bio;
         this.skillsCsv = skillsCsv;
         this.imageUrl = imageUrl;
+        this.location = location;
+        this.contactEmail = contactEmail;
+        this.phone = phone;
+        this.website = website;
+        this.linkedin = linkedin;
+        this.github = github;
+        this.hourlyRateCents = hourlyRateCents;
+        this.currency = currency;
+        this.available = available;
     }
 
     public Long getId() { return id; }
@@ -50,13 +99,44 @@ public class FreelancerProfile {
     public String getBio() { return bio; }
     public String getSkillsCsv() { return skillsCsv; }
     public String getImageUrl() { return imageUrl; }
+    public String getLocation() { return location; }
+    public String getContactEmail() { return contactEmail; }
+    public String getPhone() { return phone; }
+    public String getWebsite() { return website; }
+    public String getLinkedin() { return linkedin; }
+    public String getGithub() { return github; }
+    public Integer getHourlyRateCents() { return hourlyRateCents; }
+    public String getCurrency() { return currency; }
+    public Boolean getAvailable() { return available; }
     public Instant getCreatedAt() { return createdAt; }
 
-    public void update(String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
+    public void update(String displayName,
+                       String professionalTitle,
+                       String bio,
+                       String skillsCsv,
+                       String imageUrl,
+                       String location,
+                       String contactEmail,
+                       String phone,
+                       String website,
+                       String linkedin,
+                       String github,
+                       Integer hourlyRateCents,
+                       String currency,
+                       Boolean available) {
         this.displayName = displayName;
         this.professionalTitle = professionalTitle;
         this.bio = bio;
         this.skillsCsv = skillsCsv;
         this.imageUrl = imageUrl;
+        this.location = location;
+        this.contactEmail = contactEmail;
+        this.phone = phone;
+        this.website = website;
+        this.linkedin = linkedin;
+        this.github = github;
+        this.hourlyRateCents = hourlyRateCents;
+        this.currency = currency;
+        this.available = available;
     }
 }

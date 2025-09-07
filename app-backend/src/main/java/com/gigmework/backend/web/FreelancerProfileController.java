@@ -24,15 +24,64 @@ public class FreelancerProfileController {
     @PutMapping("/{userId}/profile")
     public ResponseEntity<?> upsert(@PathVariable Long userId, @RequestBody UpsertFreelancerProfile body) {
         try {
-            FreelancerProfile fp = service.createOrUpdate(userId, body.displayName(), body.professionalTitle(), body.bio(), body.skillsCsv(), body.imageUrl());
+            FreelancerProfile fp = service.createOrUpdate(
+                userId,
+                body.displayName(),
+                body.professionalTitle(),
+                body.bio(),
+                body.skillsCsv(),
+                body.imageUrl(),
+                body.location(),
+                body.contactEmail(),
+                body.phone(),
+                body.website(),
+                body.linkedin(),
+                body.github(),
+                body.hourlyRateCents(),
+                body.currency(),
+                body.available()
+            );
             return ResponseEntity.ok(FreelancerProfileDto.from(fp));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-    public record UpsertFreelancerProfile(String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {}
-    public record FreelancerProfileDto(Long id, Long userId, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
+    public record UpsertFreelancerProfile(
+            String displayName,
+            String professionalTitle,
+            String bio,
+            String skillsCsv,
+            String imageUrl,
+            String location,
+            String contactEmail,
+            String phone,
+            String website,
+            String linkedin,
+            String github,
+            Integer hourlyRateCents,
+            String currency,
+            Boolean available
+    ) {}
+
+    public record FreelancerProfileDto(
+            Long id,
+            Long userId,
+            String displayName,
+            String professionalTitle,
+            String bio,
+            String skillsCsv,
+            String imageUrl,
+            String location,
+            String contactEmail,
+            String phone,
+            String website,
+            String linkedin,
+            String github,
+            Integer hourlyRateCents,
+            String currency,
+            Boolean available
+    ) {
         static FreelancerProfileDto from(FreelancerProfile fp) {
             return new FreelancerProfileDto(
                 fp.getId(),
@@ -41,7 +90,16 @@ public class FreelancerProfileController {
                 fp.getProfessionalTitle(),
                 fp.getBio(),
                 fp.getSkillsCsv(),
-                fp.getImageUrl()
+                fp.getImageUrl(),
+                fp.getLocation(),
+                fp.getContactEmail(),
+                fp.getPhone(),
+                fp.getWebsite(),
+                fp.getLinkedin(),
+                fp.getGithub(),
+                fp.getHourlyRateCents(),
+                fp.getCurrency(),
+                fp.getAvailable()
             );
         }
     }

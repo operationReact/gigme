@@ -629,11 +629,14 @@ class _HeaderHero extends StatelessWidget {
         ),
         if (isWide)
           Row(
-            children: const [
+            children: [
               _GradientButton(
-                  icon: Icons.edit_outlined, label: 'Edit Profile'),
-              SizedBox(width: 12),
-              _OutlineSoftButton(
+                icon: Icons.edit_outlined,
+                label: 'Edit Profile',
+                onPressed: () => Navigator.of(context).pushNamed('/profile/user'),
+              ),
+              const SizedBox(width: 12),
+              const _OutlineSoftButton(
                   icon: Icons.notifications_outlined,
                   label: 'Notifications'),
             ],
@@ -3044,10 +3047,11 @@ class _AddPortfolioFab extends StatelessWidget {
 class _GradientButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _GradientButton({super.key, required this.icon, required this.label});
+  final VoidCallback? onPressed;
+  const _GradientButton({super.key, required this.icon, required this.label, this.onPressed});
   @override
   Widget build(BuildContext context) =>
-      ElevatedButton.icon(onPressed: () {}, icon: Icon(icon), label: Text(label));
+      ElevatedButton.icon(onPressed: onPressed, icon: Icon(icon), label: Text(label));
 }
 
 class _OutlineSoftButton extends StatelessWidget {

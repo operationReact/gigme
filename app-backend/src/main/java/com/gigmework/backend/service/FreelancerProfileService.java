@@ -19,15 +19,36 @@ public class FreelancerProfileService {
         this.repo = repo; this.userRepo = userRepo;
     }
 
-    public FreelancerProfile createOrUpdate(Long userId, String displayName, String professionalTitle, String bio, String skillsCsv, String imageUrl) {
+    public FreelancerProfile createOrUpdate(Long userId,
+                                            String displayName,
+                                            String professionalTitle,
+                                            String bio,
+                                            String skillsCsv,
+                                            String imageUrl,
+                                            String location,
+                                            String contactEmail,
+                                            String phone,
+                                            String website,
+                                            String linkedin,
+                                            String github,
+                                            Integer hourlyRateCents,
+                                            String currency,
+                                            Boolean available) {
         UserAccount user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("user not found"));
+        // basic validation and normalization
+        String name = displayName == null ? null : displayName.trim();
+        if (name == null || name.isEmpty()) throw new IllegalArgumentException("displayName is required");
+
         Optional<FreelancerProfile> existing = repo.findByUser(user);
         if (existing.isPresent()) {
             FreelancerProfile fp = existing.get();
-            fp.update(displayName, professionalTitle, bio, skillsCsv, imageUrl);
+            fp.update(name, professionalTitle, bio, skillsCsv, imageUrl,
+                    location, contactEmail, phone, website, linkedin, github,
+                    hourlyRateCents, currency, available);
             return fp;
         }
-        FreelancerProfile fp = new FreelancerProfile(user, displayName, professionalTitle, bio, skillsCsv, imageUrl);
+        FreelancerProfile fp = new FreelancerProfile(user, name, professionalTitle, bio, skillsCsv, imageUrl,
+                location, contactEmail, phone, website, linkedin, github, hourlyRateCents, currency, available);
         return repo.save(fp);
     }
 
