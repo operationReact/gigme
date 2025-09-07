@@ -54,9 +54,15 @@ class FreelancerHomePage extends StatefulWidget {
   State<FreelancerHomePage> createState() => _FreelancerHomePageState();
 }
 
+// NEW: Top-level primary tabs for the home screen
+enum _PrimaryTab { feed, portfolio, jobs }
+
 class _FreelancerHomePageState extends State<FreelancerHomePage> {
   int? _newJobsCount;
   bool _loading = true;
+
+  // NEW: current selected tab (default: Creator feed)
+  _PrimaryTab _currentTab = _PrimaryTab.feed;
 
   @override
   void initState() {
@@ -87,6 +93,71 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
     // TODO: Implement navigation or action for applying to work
   }
 
+  // NEW: Primary tabs UI
+  Widget _primaryTabs() {
+    Widget chip(_PrimaryTab tab, String label, IconData icon) {
+      final selected = _currentTab == tab;
+      return ChoiceChip(
+        selected: selected,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 6),
+            Text(label),
+          ],
+        ),
+        onSelected: (_) => setState(() => _currentTab = tab),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      );
+    }
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        chip(_PrimaryTab.feed, 'Creator feed', Icons.dynamic_feed_outlined),
+        chip(_PrimaryTab.portfolio, 'Portfolio', Icons.work_outline),
+        chip(_PrimaryTab.jobs, 'Jobs', Icons.work_history_outlined),
+      ],
+    );
+  }
+
+  // NEW: Only one big section rendered based on the selected tab
+  Widget _selectedSection(int? uid) {
+    switch (_currentTab) {
+      case _PrimaryTab.feed:
+        if (uid == null) {
+          return const GlassCard(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Sign in to see your creator feed'),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HomeFeedPreview(viewerId: uid),
+          ],
+        );
+
+      case _PrimaryTab.portfolio:
+        return const _PortfolioSection();
+
+      case _PrimaryTab.jobs:
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ActiveContracts(),
+            SizedBox(height: 16),
+            _Recommendations(),
+          ],
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -94,20 +165,23 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      // NEW: Contextual FAB (Upload on Portfolio; Apply CTA otherwise)
       floatingActionButton: isMobile
-          ? ApplyForWorkCta(
+          ? (_currentTab == _PrimaryTab.portfolio
+          ? const _AddPortfolioFab()
+          : ApplyForWorkCta(
         initialCount: _newJobsCount,
         onPressed: _onApplyPressed,
         dense: true,
         showLabel: true,
-      )
+      ))
           : null,
       appBar: AppBar(
         title: const Text('Freelancer Home'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          if (!isMobile)
+          if (!isMobile && _currentTab != _PrimaryTab.portfolio)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
               child: ApplyForWorkCta(
@@ -179,7 +253,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 builder: (ctx, constraints) {
                   final home = HomeData.of(ctx);
                   final uid = home.data?.userId;
-
                   final isWide = constraints.maxWidth >= _kDesktopBreakpoint;
 
                   return SingleChildScrollView(
@@ -192,106 +265,48 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _HeaderHero(isWide: isWide),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 12),
 
-                            if (isWide) ...[
-                              // ===================== DESKTOP: TWO COLUMNS =====================
+                            // ✅ NEW: Profile Card (left) + Performance Overview (right)
+                            if (isWide)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // ------------ MAIN COLUMN (8/12) ------------
                                   Expanded(
-                                    flex: 8,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        const _ProfileOverview(),
-                                        const SizedBox(height: 16),
-
-                                        if (uid != null) ...[
-                                          HomeFeedPreview(viewerId: uid),
-                                          const SizedBox(height: 20),
-                                        ],
-
-                                        const _PortfolioSection(),
-                                        const SizedBox(height: 20),
-
-                                        const _ActiveContracts(),
-                                      ],
+                                    flex: 5,
+                                    child: _ProfileIdentityCard(
+                                      onOpenFeed: () => setState(() {
+                                        _currentTab = _PrimaryTab.feed;
+                                      }),
                                     ),
                                   ),
-                                  const SizedBox(width: 24),
-
-                                  // ------------ SIDEBAR (4/12) ------------
-                                  Expanded(
-                                    flex: 4,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        const _StatsAndProgress(),
-                                        const SizedBox(height: 16),
-                                        const _QuickActions(),
-                                        const SizedBox(height: 16),
-
-                                        if (uid != null) ...[
-                                          WhoToFollow(userId: uid),
-                                          const SizedBox(height: 16),
-                                          SocialStrip(userId: uid),
-                                          const SizedBox(height: 16),
-                                        ],
-
-                                        const _Recommendations(),
-                                        const SizedBox(height: 16),
-                                        const _ScheduleMini(),
-                                        const SizedBox(height: 16),
-
-                                        const _AboutSection(),
-                                        const SizedBox(height: 16),
-                                        const _ContactSectionRemote(),
-                                        const SizedBox(height: 16),
-                                        const _RecentActivitySection(),
-                                      ],
-                                    ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    flex: 7,
+                                    child: _StatsAndProgress(),
                                   ),
                                 ],
-                              ),
-                            ] else ...[
-                              // ===================== MOBILE: SINGLE COLUMN =====================
-                              const _ProfileOverview(),
-                              const SizedBox(height: 16),
+                              )
+                            else
+                              const _ProfileIdentityCard(),
+
+                            if (!isWide) ...[
+                              const SizedBox(height: 12),
                               const _StatsAndProgress(),
-                              const SizedBox(height: 16),
-                              const _QuickActions(),
-                              const SizedBox(height: 16),
-
-                              if (uid != null) ...[
-                                HomeFeedPreview(viewerId: uid),
-                                const SizedBox(height: 16),
-                              ],
-
-                              const _PortfolioSection(),
-                              const SizedBox(height: 16),
-                              const _ActiveContracts(),
-                              const SizedBox(height: 16),
-
-                              const _Recommendations(),
-                              const SizedBox(height: 16),
-
-                              if (uid != null) ...[
-                                WhoToFollow(userId: uid),
-                                const SizedBox(height: 16),
-                                SocialStrip(userId: uid),
-                                const SizedBox(height: 16),
-                              ],
-
-                              const _AboutSection(),
-                              const SizedBox(height: 16),
-                              const _ContactSectionRemote(),
-                              const SizedBox(height: 16),
-                              const _RecentActivitySection(),
-                              const SizedBox(height: 16),
-                              const _ScheduleMini(),
                             ],
+
+                            const SizedBox(height: 12),
+                            const _QuickActions(),
+                            const SizedBox(height: 16),
+
+                            // NEW: Top-level primary tabs
+                            GlassCard(child: _primaryTabs()),
+                            const SizedBox(height: 16),
+
+                            // NEW: Only the selected section renders
+                            _selectedSection(uid),
+
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),
@@ -526,7 +541,220 @@ class _HeaderHero extends StatelessWidget {
   }
 }
 
-// Animated stats with icons
+/// ✅ NEW: Old-style profile card brought into the new page
+class _ProfileIdentityCard extends StatelessWidget {
+  final VoidCallback? onOpenFeed;
+  const _ProfileIdentityCard({this.onOpenFeed});
+
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+
+    final name = d?.displayName ?? 'Your Name';
+    final title = d?.professionalTitle ?? 'Public Figure';
+    final bio = d?.bio ?? 'Building robust apps with delightful UX.';
+    final avatarUrl = d?.imageUrl;
+
+    // TODO: plug your real counts here (replace the zeroes with your dto fields)
+    final posts = 0;      // e.g., d?.postsCount ?? 0
+    final followers = 0;  // e.g., d?.followersCount ?? 0
+    final following = 0;  // e.g., d?.followingCount ?? 0
+
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: avatar + identity + actions
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProfileAvatar(url: avatarUrl, loading: loading),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _kHeading,
+                          )),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(title,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: _kMuted,
+                                fontWeight: FontWeight.w600,
+                              )),
+                          const SizedBox(width: 8),
+                          const _TinyBadge(icon: Icons.verified, label: 'Pro'),
+                          const SizedBox(width: 6),
+                          const _TinyBadge(icon: Icons.star_border_rounded, label: 'Creator'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        bio,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _kBody),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Stats row
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _MetricPill(count: posts, label: 'Posts', icon: Icons.article_outlined),
+                          _MetricPill(count: followers, label: 'Followers', icon: Icons.group_outlined),
+                          _MetricPill(count: following, label: 'Following', icon: Icons.person_add_alt_1_outlined),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+                      // Open feed action (optional)
+                      TextButton.icon(
+                        onPressed: onOpenFeed,
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                        label: const Text('Open feed'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _kIndigo,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  final String? url;
+  final bool loading;
+  const _ProfileAvatar({required this.url, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = 72.0;
+    return Stack(
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const SweepGradient(
+              colors: [_kTeal, _kIndigo, _kViolet, _kTeal],
+              stops: [0, .33, .66, 1],
+            ),
+            boxShadow: const [BoxShadow(color: Color(0x2200C2A8), blurRadius: 18, offset: Offset(0, 6))],
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.all(6),
+          width: size - 12,
+          height: size - 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            color: Colors.white,
+            image: (url != null && url!.isNotEmpty)
+                ? DecorationImage(
+              image: NetworkImage(kIsWeb && url!.startsWith('http://')
+                  ? url!.replaceFirst('http://', 'https://')
+                  : url!),
+              fit: BoxFit.cover,
+            )
+                : null,
+          ),
+          child: (url == null || url!.isEmpty)
+              ? const Icon(Icons.person, size: 32, color: _kMuted)
+              : null,
+        ),
+        if (loading)
+          const Positioned.fill(
+            child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+          ),
+      ],
+    );
+  }
+}
+
+class _TinyBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _TinyBadge({required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white),
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 6, offset: Offset(0, 2))],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: _kIndigo),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kHeading)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricPill extends StatelessWidget {
+  final int count;
+  final String label;
+  final IconData icon;
+  const _MetricPill({required this.count, required this.label, required this.icon});
+
+  String _fmt(int v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
+    return '$v';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        border: Border.all(color: Colors.white),
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2))],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: _kHeading),
+          const SizedBox(width: 8),
+          Text(_fmt(count),
+              style: const TextStyle(fontWeight: FontWeight.w800, color: _kHeading)),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(color: _kMuted, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// Animated stats with icons (kept for future use)
 class _StatsAndProgress extends StatelessWidget {
   const _StatsAndProgress();
   @override
@@ -2141,7 +2369,13 @@ class _AddPortfolioFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed: () {},
+      onPressed: () {
+        // Find the nearest _PortfolioSectionState and call its upload button
+        // (Optional) You can wire this via a GlobalKey if you want direct control.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tap "Upload Portfolio" to add an item.')),
+        );
+      },
       backgroundColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
@@ -2159,7 +2393,7 @@ class _AddPortfolioFab extends StatelessWidget {
             children: [
               Icon(Icons.add, color: Colors.white),
               SizedBox(width: 8),
-              Text('Add Portfolio Item',
+              Text('Upload Portfolio',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             ],
           ),
@@ -2418,7 +2652,6 @@ class _ClickableRow extends StatelessWidget {
 }
 
 // --- STUBS / PREVIEWS ---
-
 class _ProfileOverview extends StatelessWidget {
   const _ProfileOverview();
   @override
