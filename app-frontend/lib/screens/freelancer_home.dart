@@ -39,6 +39,10 @@ const _kHeading = Color(0xFF111827);
 const _kBody = Color(0xFF374151);
 const _kMuted = Color(0xFF6B7280);
 
+// Layout tokens
+const _kMaxPageWidth = 1280.0;      // keeps large screens readable
+const _kDesktopBreakpoint = 1024.0; // 8/12 + 4/12 columns above this
+
 // Helper for dark mode checks reused across widgets
 bool _isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
 
@@ -87,6 +91,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       floatingActionButton: isMobile
@@ -151,19 +156,19 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
             ),
             // Subtle animated color mist overlay
             const _AnimatedBackground(),
-            // Gradient hero banner at top
+            // Gradient hero banner at top (slimmer + softer)
             Align(
               alignment: Alignment.topCenter,
               child: Container(
-                height: 220,
+                height: 140,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      cs.primary.withValues(alpha: 0.35),
-                      cs.secondary.withValues(alpha: 0.25),
-                      cs.tertiary.withValues(alpha: 0.2),
+                      cs.primary.withValues(alpha: 0.25),
+                      cs.secondary.withValues(alpha: 0.18),
+                      cs.tertiary.withValues(alpha: 0.15),
                     ],
                   ),
                 ),
@@ -172,104 +177,124 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
             SafeArea(
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
-                  // 🔧 USE the inner `ctx` that is under HomeData
                   final home = HomeData.of(ctx);
                   final uid = home.data?.userId;
 
-                  final isWide = constraints.maxWidth >= 960;
-                  final sidePadding = isWide ? 32.0 : 16.0;
+                  final isWide = constraints.maxWidth >= _kDesktopBreakpoint;
+
                   return SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(sidePadding, 16, sidePadding, 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _HeaderHero(isWide: isWide),
-                        const SizedBox(height: 24),
-                        if (isWide)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // LEFT COLUMN
-                              Expanded(
-                                flex: 5,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    const _ProfileOverview(),
-                                    const SizedBox(height: 12),
-                                    if (uid != null) SocialStrip(userId: uid),
-                                    const SizedBox(height: 20),
-                                    if (uid != null) ...[
-                                      WhoToFollow(userId: uid),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    const _AboutSection(),
-                                    const SizedBox(height: 20),
-                                    const _ContactSectionRemote(),
-                                    const SizedBox(height: 20),
-                                    const _RecentActivitySection(),
-                                  ],
-                                ),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: _kMaxPageWidth),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _HeaderHero(isWide: isWide),
+                            const SizedBox(height: 20),
+
+                            if (isWide) ...[
+                              // ===================== DESKTOP: TWO COLUMNS =====================
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ------------ MAIN COLUMN (8/12) ------------
+                                  Expanded(
+                                    flex: 8,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        const _ProfileOverview(),
+                                        const SizedBox(height: 16),
+
+                                        if (uid != null) ...[
+                                          HomeFeedPreview(viewerId: uid),
+                                          const SizedBox(height: 20),
+                                        ],
+
+                                        const _PortfolioSection(),
+                                        const SizedBox(height: 20),
+
+                                        const _ActiveContracts(),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+
+                                  // ------------ SIDEBAR (4/12) ------------
+                                  Expanded(
+                                    flex: 4,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        const _StatsAndProgress(),
+                                        const SizedBox(height: 16),
+                                        const _QuickActions(),
+                                        const SizedBox(height: 16),
+
+                                        if (uid != null) ...[
+                                          WhoToFollow(userId: uid),
+                                          const SizedBox(height: 16),
+                                          SocialStrip(userId: uid),
+                                          const SizedBox(height: 16),
+                                        ],
+
+                                        const _Recommendations(),
+                                        const SizedBox(height: 16),
+                                        const _ScheduleMini(),
+                                        const SizedBox(height: 16),
+
+                                        const _AboutSection(),
+                                        const SizedBox(height: 16),
+                                        const _ContactSectionRemote(),
+                                        const SizedBox(height: 16),
+                                        const _RecentActivitySection(),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 24),
-                              // RIGHT COLUMN
-                              Expanded(
-                                flex: 7,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    const _StatsAndProgress(),
-                                    const SizedBox(height: 20),
-                                    const _QuickActions(),
-                                    const SizedBox(height: 20),
-                                    if (uid != null) ...[
-                                      HomeFeedPreview(viewerId: uid),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    const _PortfolioSection(),
-                                    const SizedBox(height: 20),
-                                    const _ActiveContracts(),
-                                    const SizedBox(height: 20),
-                                    const _Recommendations(),
-                                    const SizedBox(height: 20),
-                                    const _ScheduleMini(),
-                                  ],
-                                ),
-                              ),
+                            ] else ...[
+                              // ===================== MOBILE: SINGLE COLUMN =====================
+                              const _ProfileOverview(),
+                              const SizedBox(height: 16),
+                              const _StatsAndProgress(),
+                              const SizedBox(height: 16),
+                              const _QuickActions(),
+                              const SizedBox(height: 16),
+
+                              if (uid != null) ...[
+                                HomeFeedPreview(viewerId: uid),
+                                const SizedBox(height: 16),
+                              ],
+
+                              const _PortfolioSection(),
+                              const SizedBox(height: 16),
+                              const _ActiveContracts(),
+                              const SizedBox(height: 16),
+
+                              const _Recommendations(),
+                              const SizedBox(height: 16),
+
+                              if (uid != null) ...[
+                                WhoToFollow(userId: uid),
+                                const SizedBox(height: 16),
+                                SocialStrip(userId: uid),
+                                const SizedBox(height: 16),
+                              ],
+
+                              const _AboutSection(),
+                              const SizedBox(height: 16),
+                              const _ContactSectionRemote(),
+                              const SizedBox(height: 16),
+                              const _RecentActivitySection(),
+                              const SizedBox(height: 16),
+                              const _ScheduleMini(),
                             ],
-                          )
-                        else ...[
-                          const _ProfileOverview(),
-                          const SizedBox(height: 12),
-                          if (uid != null) SocialStrip(userId: uid),
-                          const SizedBox(height: 20),
-                          if (uid != null) ...[
-                            WhoToFollow(userId: uid),
-                            const SizedBox(height: 20),
                           ],
-                          const _StatsAndProgress(),
-                          const SizedBox(height: 20),
-                          const _QuickActions(),
-                          const SizedBox(height: 20),
-                          if (uid != null) ...[
-                            HomeFeedPreview(viewerId: uid),
-                            const SizedBox(height: 20),
-                          ],
-                          const _PortfolioSection(),
-                          const SizedBox(height: 20),
-                          const _AboutSection(),
-                          const SizedBox(height: 20),
-                          const _ContactSectionRemote(),
-                          const SizedBox(height: 20),
-                          const _RecentActivitySection(),
-                          const SizedBox(height: 20),
-                          const _ActiveContracts(),
-                          const SizedBox(height: 20),
-                          const _Recommendations(),
-                          const SizedBox(height: 20),
-                          const _ScheduleMini(),
-                        ],
-                      ],
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -1164,7 +1189,6 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
   @override
   void initState() {
     super.initState();
-    // Intentionally do not read HomeData here
   }
 
   @override
@@ -1259,7 +1283,7 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         await S3Service.uploadFileToS3(presignedUrl, file);
       }
       // 3. Register portfolio item in backend (send only metadata)
-      final fileUrl = EnvConfig.s3FileUrl(key); // TODO: replace with actual bucket/region
+      final fileUrl = EnvConfig.s3FileUrl(key);
       final uri = Uri.parse('${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
       final Map<String, String> fields = {
         'freelancerId': user.userId.toString(),
@@ -1393,7 +1417,7 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
               width: w,
               child: _EmptyPortfolioCard(
                 onTap: () {
-                  if (!_uploading) _pickAndUploadFile(); // respects current tab: IMAGE/VIDEO/DOCUMENT
+                  if (!_uploading) _pickAndUploadFile(); // respects current tab
                 },
               ),
             ),
@@ -1734,7 +1758,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     ),
                   ),
 
-                // animated shine — now ONLY while loading (never after media is loaded)
+                // animated shine — ONLY while loading (never after media is loaded)
                 if (!_mediaLoaded)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -1844,7 +1868,6 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
 }
 
 // A safer Image.network with URL normalization and simple load/error hooks.
-// Shows a placeholder (e.g., shimmer) ONLY while loading; after load, show the image.
 class _SafeNetworkImage extends StatefulWidget {
   final String url;
   final BoxFit fit;
