@@ -1,3 +1,5 @@
+// [file: freelancer_home_page.dart]
+
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'dart:io';
@@ -89,9 +91,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
     }
   }
 
-  void _onApplyPressed() {
-    // TODO: Implement navigation or action for applying to work
-  }
+  void _onApplyPressed() {}
 
   // NEW: Only one big section rendered based on the selected tab
   Widget _selectedSection(int? uid) {
@@ -134,7 +134,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      // NEW: Contextual FAB (Upload on Portfolio; Apply CTA otherwise)
       floatingActionButton: isMobile
           ? (_currentTab == _PrimaryTab.portfolio
           ? const _AddPortfolioFab()
@@ -166,7 +165,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 icon: const Icon(Icons.notifications_outlined),
                 onPressed: () {},
               ),
-              // Dot indicator for unread notifications
               Positioned(
                 right: 12,
                 top: 12,
@@ -187,7 +185,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
       body: FreelancerHomeLoader(
         child: Stack(
           children: [
-            // Soft neutral gradient background
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -197,9 +194,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 ),
               ),
             ),
-            // Subtle animated color mist overlay
             const _AnimatedBackground(),
-            // Gradient hero banner at top (slimmer + softer)
             Align(
               alignment: Alignment.topCenter,
               child: Container(
@@ -236,7 +231,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                             _HeaderHero(isWide: isWide),
                             const SizedBox(height: 12),
 
-                            // ✅ Profile Card (left) + Performance Overview (right)
                             if (isWide)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +262,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                             const _QuickActions(),
                             const SizedBox(height: 16),
 
-                            // ✅ Rich primary navigation bar (replaces the old chips)
                             _PrimaryNavBar(
                               current: _currentTab,
                               onChanged: (t) => setState(() => _currentTab = t),
@@ -276,7 +269,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                             ),
                             const SizedBox(height: 16),
 
-                            // Only the selected section renders
                             _selectedSection(uid),
 
                             const SizedBox(height: 24),
@@ -530,17 +522,15 @@ class _ProfileIdentityCard extends StatelessWidget {
     final bio = d?.bio ?? 'Building robust apps with delightful UX.';
     final avatarUrl = d?.imageUrl;
 
-    // TODO: plug your real counts here (replace the zeroes with your dto fields)
-    final posts = 0;      // e.g., d?.postsCount ?? 0
-    final followers = 0;  // e.g., d?.followersCount ?? 0
-    final following = 0;  // e.g., d?.followingCount ?? 0
+    final posts = 0;
+    final followers = 0;
+    final following = 0;
 
     return HoverScale(
       child: GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: avatar + identity + actions
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -578,7 +568,6 @@ class _ProfileIdentityCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      // Stats row
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
@@ -590,7 +579,6 @@ class _ProfileIdentityCard extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 10),
-                      // Open feed action (optional)
                       TextButton.icon(
                         onPressed: onOpenFeed,
                         icon: const Icon(Icons.open_in_new_rounded, size: 18),
@@ -727,7 +715,7 @@ class _MetricPill extends StatelessWidget {
   }
 }
 
-// ✅ RICH PRIMARY NAV BAR (animated pill + badge) — PERFECT CENTERING
+// ✅ RICH PRIMARY NAV BAR (animated pill + badge) — center & refined idle/hover states
 class _PrimaryNavBar extends StatelessWidget {
   final _PrimaryTab current;
   final ValueChanged<_PrimaryTab> onChanged;
@@ -754,10 +742,8 @@ class _PrimaryNavBar extends StatelessWidget {
   }
 
   Alignment _slotAlignment(int index, int count) {
-    // maps 0..count-1 to -1..1
     final step = count == 1 ? 0.0 : 2.0 / (count - 1);
     return Alignment(-1.0 + index * step, 0.0);
-    // (-1,0) left, (0,0) center, (1,0) right
   }
 
   @override
@@ -795,7 +781,7 @@ class _PrimaryNavBar extends StatelessWidget {
                   ),
                   child: Stack(
                     children: [
-                      // Animated selected pill sized to exactly one slot and centered using alignment
+                      // Selected pill (aligned and sized to slot)
                       Padding(
                         padding: const EdgeInsets.all(trackPadding),
                         child: AnimatedAlign(
@@ -826,7 +812,7 @@ class _PrimaryNavBar extends StatelessWidget {
                         ),
                       ),
 
-                      // Buttons row — each button gets its *own fixed slot width* and full height
+                      // Buttons row with refined idle/hover visuals
                       Padding(
                         padding: const EdgeInsets.all(trackPadding),
                         child: Row(
@@ -884,6 +870,8 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
   late final AnimationController _c =
   AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
 
+  bool _hover = false;
+
   @override
   void didUpdateWidget(covariant _NavButton oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -895,44 +883,76 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
 
   @override
   Widget build(BuildContext context) {
-    final fg = widget.selected ? Colors.white : _kBody;
+    // Subtle professional treatment:
+    // - muted when idle
+    // - shifts to normal on hover
+    final fg = widget.selected
+        ? Colors.white
+        : (_hover ? _kBody : _kMuted);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onTap();
-        },
-        child: SizedBox(
-          height: double.infinity,
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ScaleTransition(
-                  scale: Tween(begin: 1.0, end: 1.08).animate(
-                    CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+    // Light glassy fill + hairline border on hover for unselected
+    final BoxDecoration deco = widget.selected
+        ? const BoxDecoration()
+        : BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      color: _hover ? Colors.white.withValues(alpha: 0.14) : Colors.transparent,
+      border: Border.all(color: Colors.black.withValues(alpha: _hover ? 0.06 : 0.03)),
+      boxShadow: _hover
+          ? const [
+        BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 2))
+      ]
+          : const [],
+    );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        decoration: deco,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap();
+            },
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 120),
+              scale: widget.selected ? 1.0 : (_hover ? 1.02 : 1.0),
+              child: SizedBox(
+                height: double.infinity,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ScaleTransition(
+                        scale: Tween(begin: 1.0, end: 1.08).animate(
+                          CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+                        ),
+                        child: Icon(widget.icon, size: 20, color: fg),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        style: TextStyle(
+                          color: fg,
+                          fontWeight: widget.selected ? FontWeight.w800 : FontWeight.w600,
+                          height: 1.0,
+                        ),
+                        child: Text(widget.label),
+                      ),
+                      if (widget.trailingBadge != null) ...[
+                        const SizedBox(width: 8),
+                        widget.trailingBadge!,
+                      ],
+                    ],
                   ),
-                  child: Icon(widget.icon, size: 20, color: fg),
                 ),
-                const SizedBox(width: 8),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: widget.selected ? FontWeight.w800 : FontWeight.w600,
-                    height: 1.0, // keeps vertical centering crisp
-                  ),
-                  child: Text(widget.label),
-                ),
-                if (widget.trailingBadge != null) ...[
-                  const SizedBox(width: 8),
-                  widget.trailingBadge!,
-                ],
-              ],
+              ),
             ),
           ),
         ),
