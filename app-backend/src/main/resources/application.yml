@@ -34,6 +34,8 @@ spring:
           auth: false
           starttls:
             enable: false
+  flyway:
+    enabled: false
 app:
   reset:
     email:
@@ -62,6 +64,8 @@ spring:
           auth: true
           starttls:
             enable: true
+  flyway:
+    enabled: true
 app:
   reset:
     email:

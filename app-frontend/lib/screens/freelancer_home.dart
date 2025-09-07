@@ -1,4 +1,4 @@
-// [file: freelancer_home_page.dart]
+// lib/screens/freelancer_home.dart
 
 import 'dart:ui' as ui;
 import 'dart:math' as math;
@@ -42,11 +42,126 @@ const _kBody = Color(0xFF374151);
 const _kMuted = Color(0xFF6B7280);
 
 // Layout tokens
-const _kMaxPageWidth = 1280.0;      // keeps large screens readable
+const _kMaxPageWidth = 1280.0; // keeps large screens readable
 const _kDesktopBreakpoint = 1024.0; // 8/12 + 4/12 columns above this
 
 // Helper for dark mode checks reused across widgets
 bool _isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+
+/// ===== Brand Logo =====
+
+class _GmwLogo extends StatelessWidget {
+  final double markSize;
+  final double fontSize;
+  final bool showTagline;
+  final double opacity;
+
+  const _GmwLogo({
+    this.markSize = 32,
+    this.fontSize = 24,
+    this.showTagline = false,
+    this.opacity = 1,
+    super.key,
+  });
+
+  // ✅ const redirecting constructors so these can be used in const widgets
+  const _GmwLogo.compact()
+      : this(markSize: 26, fontSize: 20, showTagline: false);
+
+  const _GmwLogo.watermark()
+      : this(markSize: 72, fontSize: 56, showTagline: false, opacity: .06);
+
+  @override
+  Widget build(BuildContext context) {
+    final wordmark = Text.rich(
+      TextSpan(children: const [
+        TextSpan(
+            text: 'Gig',
+            style: TextStyle(color: _kHeading, fontWeight: FontWeight.w800)),
+        TextSpan(
+            text: 'Me',
+            style: TextStyle(color: _kTeal, fontWeight: FontWeight.w800)),
+        TextSpan(
+            text: 'Work',
+            style: TextStyle(color: _kHeading, fontWeight: FontWeight.w800)),
+      ]),
+      style: TextStyle(fontSize: fontSize, height: 1.0),
+    );
+
+    final tagline = const Text(
+      'People need People',
+      style: TextStyle(color: _kMuted, fontSize: 12, fontWeight: FontWeight.w600),
+    );
+
+    return Opacity(
+      opacity: opacity,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _GmwMark(size: markSize),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              wordmark,
+              if (showTagline) const SizedBox(height: 4),
+              if (showTagline) tagline,
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GmwMark extends StatelessWidget {
+  final double size;
+  const _GmwMark({required this.size, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = size;
+    final w = size * 1.7;
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // two discs
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: h,
+              height: h,
+              decoration:
+              const BoxDecoration(color: _kTeal, shape: BoxShape.circle),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              width: h,
+              height: h,
+              decoration:
+              const BoxDecoration(color: _kViolet, shape: BoxShape.circle),
+            ),
+          ),
+          // link bar with white outline
+          Container(
+            width: w * 0.74,
+            height: h * 0.34,
+            decoration: BoxDecoration(
+              color: _kIndigo,
+              borderRadius: BorderRadius.circular(h),
+              border: Border.all(color: Colors.white, width: h * 0.10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class FreelancerHomePage extends StatefulWidget {
   static const routeName = '/home/freelancer';
@@ -145,13 +260,15 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
       ))
           : null,
       appBar: AppBar(
-        title: const Text('Freelancer Home'),
+        title:
+        const _GmwLogo(markSize: 20, fontSize: 18, showTagline: false),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           if (!isMobile && _currentTab != _PrimaryTab.portfolio)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              padding:
+              const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
               child: ApplyForWorkCta(
                 initialCount: _newJobsCount,
                 onPressed: _onApplyPressed,
@@ -212,34 +329,47 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 ),
               ),
             ),
+            // ✅ watermark/logo overlay in the Stack
+            const Positioned(
+              top: 10,
+              right: 16,
+              child: IgnorePointer(child: _GmwLogo.compact()),
+            ),
+
             SafeArea(
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
                   final home = HomeData.of(ctx);
                   final uid = home.data?.userId;
-                  final isWide = constraints.maxWidth >= _kDesktopBreakpoint;
+                  final isWide =
+                      constraints.maxWidth >= _kDesktopBreakpoint;
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    padding:
+                    const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     child: Align(
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: _kMaxPageWidth),
+                        constraints: const BoxConstraints(
+                            maxWidth: _kMaxPageWidth),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment:
+                          CrossAxisAlignment.stretch,
                           children: [
                             _HeaderHero(isWide: isWide),
                             const SizedBox(height: 12),
 
                             if (isWide)
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
                                     flex: 5,
                                     child: _ProfileIdentityCard(
                                       onOpenFeed: () => setState(() {
-                                        _currentTab = _PrimaryTab.feed;
+                                        _currentTab =
+                                            _PrimaryTab.feed;
                                       }),
                                     ),
                                   ),
@@ -264,7 +394,8 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
 
                             _PrimaryNavBar(
                               current: _currentTab,
-                              onChanged: (t) => setState(() => _currentTab = t),
+                              onChanged: (t) =>
+                                  setState(() => _currentTab = t),
                               jobsBadge: _newJobsCount,
                             ),
                             const SizedBox(height: 16),
@@ -313,7 +444,8 @@ class FreelancerHomeLoader extends StatefulWidget {
   final Widget child;
   const FreelancerHomeLoader({super.key, required this.child});
   @override
-  State<FreelancerHomeLoader> createState() => _FreelancerHomeLoaderState();
+  State<FreelancerHomeLoader> createState() =>
+      _FreelancerHomeLoaderState();
 }
 
 class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>
@@ -349,7 +481,7 @@ class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>
   }
 
   @override
-  void didPush() {
+  didPush() {
     _load();
   }
 
@@ -399,7 +531,8 @@ class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>
 class _AnimatedBackground extends StatefulWidget {
   const _AnimatedBackground();
   @override
-  State<_AnimatedBackground> createState() => _AnimatedBackgroundState();
+  State<_AnimatedBackground> createState() =>
+      _AnimatedBackgroundState();
 }
 
 class _AnimatedBackgroundState extends State<_AnimatedBackground>
@@ -485,7 +618,8 @@ class _HeaderHero extends StatelessWidget {
             children: [
               Text(
                 'Your Freelance Workspace',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style:
+                Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: _kHeading,
                 ),
@@ -496,9 +630,12 @@ class _HeaderHero extends StatelessWidget {
         if (isWide)
           Row(
             children: const [
-              _GradientButton(icon: Icons.edit_outlined, label: 'Edit Profile'),
+              _GradientButton(
+                  icon: Icons.edit_outlined, label: 'Edit Profile'),
               SizedBox(width: 12),
-              _OutlineSoftButton(icon: Icons.notifications_outlined, label: 'Notifications'),
+              _OutlineSoftButton(
+                  icon: Icons.notifications_outlined,
+                  label: 'Notifications'),
             ],
           )
       ],
@@ -519,7 +656,8 @@ class _ProfileIdentityCard extends StatelessWidget {
 
     final name = d?.displayName ?? 'Your Name';
     final title = d?.professionalTitle ?? 'Public Figure';
-    final bio = d?.bio ?? 'Building robust apps with delightful UX.';
+    final bio =
+        d?.bio ?? 'Building robust apps with delightful UX.';
     final avatarUrl = d?.imageUrl;
 
     final posts = 0;
@@ -541,7 +679,10 @@ class _ProfileIdentityCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(name,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: _kHeading,
                           )),
@@ -549,14 +690,20 @@ class _ProfileIdentityCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(title,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
                                 color: _kMuted,
                                 fontWeight: FontWeight.w600,
                               )),
                           const SizedBox(width: 8),
-                          const _TinyBadge(icon: Icons.verified, label: 'Pro'),
+                          const _TinyBadge(
+                              icon: Icons.verified, label: 'Pro'),
                           const SizedBox(width: 6),
-                          const _TinyBadge(icon: Icons.star_border_rounded, label: 'Creator'),
+                          const _TinyBadge(
+                              icon: Icons.star_border_rounded,
+                              label: 'Creator'),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -564,7 +711,10 @@ class _ProfileIdentityCard extends StatelessWidget {
                         bio,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _kBody),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: _kBody),
                       ),
                       const SizedBox(height: 12),
 
@@ -572,16 +722,27 @@ class _ProfileIdentityCard extends StatelessWidget {
                         spacing: 10,
                         runSpacing: 10,
                         children: [
-                          _MetricPill(count: posts, label: 'Posts', icon: Icons.article_outlined),
-                          _MetricPill(count: followers, label: 'Followers', icon: Icons.group_outlined),
-                          _MetricPill(count: following, label: 'Following', icon: Icons.person_add_alt_1_outlined),
+                          _MetricPill(
+                              count: posts,
+                              label: 'Posts',
+                              icon: Icons.article_outlined),
+                          _MetricPill(
+                              count: followers,
+                              label: 'Followers',
+                              icon: Icons.group_outlined),
+                          _MetricPill(
+                              count: following,
+                              label: 'Following',
+                              icon:
+                              Icons.person_add_alt_1_outlined),
                         ],
                       ),
 
                       const SizedBox(height: 10),
                       TextButton.icon(
                         onPressed: onOpenFeed,
-                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                        icon: const Icon(Icons.open_in_new_rounded,
+                            size: 18),
                         label: const Text('Open feed'),
                         style: TextButton.styleFrom(
                           foregroundColor: _kIndigo,
@@ -603,7 +764,8 @@ class _ProfileIdentityCard extends StatelessWidget {
 class _ProfileAvatar extends StatelessWidget {
   final String? url;
   final bool loading;
-  const _ProfileAvatar({required this.url, required this.loading});
+  const _ProfileAvatar(
+      {required this.url, required this.loading});
 
   @override
   Widget build(BuildContext context) {
@@ -613,13 +775,18 @@ class _ProfileAvatar extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const SweepGradient(
+            gradient: SweepGradient(
               colors: [_kTeal, _kIndigo, _kViolet, _kTeal],
               stops: [0, .33, .66, 1],
             ),
-            boxShadow: const [BoxShadow(color: Color(0x2200C2A8), blurRadius: 18, offset: Offset(0, 6))],
+            boxShadow: [
+              BoxShadow(
+                  color: Color(0x2200C2A8),
+                  blurRadius: 18,
+                  offset: Offset(0, 6))
+            ],
           ),
         ),
         Container(
@@ -632,8 +799,10 @@ class _ProfileAvatar extends StatelessWidget {
             color: Colors.white,
             image: (url != null && url!.isNotEmpty)
                 ? DecorationImage(
-              image: NetworkImage(kIsWeb && url!.startsWith('http://')
-                  ? url!.replaceFirst('http://', 'https://')
+              image: NetworkImage(kIsWeb &&
+                  url!.startsWith('http://')
+                  ? url!.replaceFirst(
+                  'http://', 'https://')
                   : url!),
               fit: BoxFit.cover,
             )
@@ -645,7 +814,12 @@ class _ProfileAvatar extends StatelessWidget {
         ),
         if (loading)
           const Positioned.fill(
-            child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+            child: Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2))),
           ),
       ],
     );
@@ -659,19 +833,32 @@ class _TinyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white),
-        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 6, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 6,
+              offset: Offset(0, 2))
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: _kIndigo),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kHeading)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _kHeading,
+            ),
+          ),
         ],
       ),
     );
@@ -682,7 +869,8 @@ class _MetricPill extends StatelessWidget {
   final int count;
   final String label;
   final IconData icon;
-  const _MetricPill({required this.count, required this.label, required this.icon});
+  const _MetricPill(
+      {required this.count, required this.label, required this.icon});
 
   String _fmt(int v) {
     if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
@@ -693,12 +881,18 @@ class _MetricPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: Colors.white,
         border: Border.all(color: Colors.white),
-        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 8,
+              offset: Offset(0, 2))
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -706,9 +900,16 @@ class _MetricPill extends StatelessWidget {
           Icon(icon, size: 16, color: _kHeading),
           const SizedBox(width: 8),
           Text(_fmt(count),
-              style: const TextStyle(fontWeight: FontWeight.w800, color: _kHeading)),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800, color: _kHeading)),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: _kMuted, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -728,7 +929,12 @@ class _PrimaryNavBar extends StatelessWidget {
     this.jobsBadge,
   });
 
-  int get _index => current == _PrimaryTab.feed ? 0 : current == _PrimaryTab.portfolio ? 1 : 2;
+  int get _index =>
+      current == _PrimaryTab.feed
+          ? 0
+          : current == _PrimaryTab.portfolio
+          ? 1
+          : 2;
 
   List<Color> _gradFor(_PrimaryTab t) {
     switch (t) {
@@ -749,7 +955,11 @@ class _PrimaryNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = ['Creator feed', 'Portfolio', 'Jobs'];
-    const icons  = [Icons.dynamic_feed_outlined, Icons.work_outline, Icons.work_history_outlined];
+    const icons = [
+      Icons.dynamic_feed_outlined,
+      Icons.work_outline,
+      Icons.work_history_outlined
+    ];
 
     return HoverScale(
       child: GlassCard(
@@ -774,9 +984,13 @@ class _PrimaryNavBar extends StatelessWidget {
                         Colors.white.withValues(alpha: 0.64),
                       ],
                     ),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.95)),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x09000000), blurRadius: 16, offset: Offset(0, 6)),
+                      BoxShadow(
+                          color: Color(0x09000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 6)),
                     ],
                   ),
                   child: Stack(
@@ -785,15 +999,18 @@ class _PrimaryNavBar extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.all(trackPadding),
                         child: AnimatedAlign(
-                          duration: const Duration(milliseconds: 220),
+                          duration:
+                          const Duration(milliseconds: 220),
                           curve: Curves.easeOutCubic,
-                          alignment: _slotAlignment(_index, itemCount),
+                          alignment: _slotAlignment(
+                              _index, itemCount),
                           child: SizedBox(
                             width: slotWidth,
                             height: double.infinity,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius:
+                                BorderRadius.circular(10),
                                 gradient: LinearGradient(
                                   colors: _gradFor(current),
                                   begin: Alignment.topLeft,
@@ -801,7 +1018,9 @@ class _PrimaryNavBar extends StatelessWidget {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _gradFor(current).last.withValues(alpha: .30),
+                                    color: _gradFor(current)
+                                        .last
+                                        .withValues(alpha: .30),
                                     blurRadius: 16,
                                     offset: const Offset(0, 8),
                                   ),
@@ -817,9 +1036,16 @@ class _PrimaryNavBar extends StatelessWidget {
                         padding: const EdgeInsets.all(trackPadding),
                         child: Row(
                           children: List.generate(itemCount, (i) {
-                            final tab = i == 0 ? _PrimaryTab.feed : i == 1 ? _PrimaryTab.portfolio : _PrimaryTab.jobs;
+                            final tab = i == 0
+                                ? _PrimaryTab.feed
+                                : i == 1
+                                ? _PrimaryTab.portfolio
+                                : _PrimaryTab.jobs;
                             final isSelected = i == _index;
-                            final showBadge = (tab == _PrimaryTab.jobs) && (jobsBadge != null) && (jobsBadge! > 0);
+                            final showBadge =
+                                (tab == _PrimaryTab.jobs) &&
+                                    (jobsBadge != null) &&
+                                    (jobsBadge! > 0);
 
                             return SizedBox(
                               width: slotWidth,
@@ -829,7 +1055,9 @@ class _PrimaryNavBar extends StatelessWidget {
                                 label: labels[i],
                                 selected: isSelected,
                                 onTap: () => onChanged(tab),
-                                trailingBadge: showBadge ? _CountBadge(count: jobsBadge!) : null,
+                                trailingBadge: showBadge
+                                    ? _CountBadge(count: jobsBadge!)
+                                    : null,
                               ),
                             );
                           }),
@@ -866,9 +1094,10 @@ class _NavButton extends StatefulWidget {
   State<_NavButton> createState() => _NavButtonState();
 }
 
-class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+class _NavButtonState extends State<_NavButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 220));
 
   bool _hover = false;
 
@@ -879,27 +1108,36 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
   }
 
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     // Subtle professional treatment:
     // - muted when idle
     // - shifts to normal on hover
-    final fg = widget.selected
-        ? Colors.white
-        : (_hover ? _kBody : _kMuted);
+    final fg =
+    widget.selected ? Colors.white : (_hover ? _kBody : _kMuted);
 
     // Light glassy fill + hairline border on hover for unselected
     final BoxDecoration deco = widget.selected
         ? const BoxDecoration()
         : BoxDecoration(
       borderRadius: BorderRadius.circular(10),
-      color: _hover ? Colors.white.withValues(alpha: 0.14) : Colors.transparent,
-      border: Border.all(color: Colors.black.withValues(alpha: _hover ? 0.06 : 0.03)),
+      color: _hover
+          ? Colors.white.withValues(alpha: 0.14)
+          : Colors.transparent,
+      border: Border.all(
+          color:
+          Colors.black.withValues(alpha: _hover ? 0.06 : 0.03)),
       boxShadow: _hover
           ? const [
-        BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 2))
+        BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, 2))
       ]
           : const [],
     );
@@ -921,7 +1159,8 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
             },
             child: AnimatedScale(
               duration: const Duration(milliseconds: 120),
-              scale: widget.selected ? 1.0 : (_hover ? 1.02 : 1.0),
+              scale:
+              widget.selected ? 1.0 : (_hover ? 1.02 : 1.0),
               child: SizedBox(
                 height: double.infinity,
                 child: Center(
@@ -930,17 +1169,23 @@ class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMi
                     children: [
                       ScaleTransition(
                         scale: Tween(begin: 1.0, end: 1.08).animate(
-                          CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+                          CurvedAnimation(
+                              parent: _c,
+                              curve: Curves.easeOutBack),
                         ),
-                        child: Icon(widget.icon, size: 20, color: fg),
+                        child:
+                        Icon(widget.icon, size: 20, color: fg),
                       ),
                       const SizedBox(width: 8),
                       AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 180),
+                        duration:
+                        const Duration(milliseconds: 180),
                         curve: Curves.easeOut,
                         style: TextStyle(
                           color: fg,
-                          fontWeight: widget.selected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: widget.selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                           height: 1.0,
                         ),
                         child: Text(widget.label),
@@ -969,12 +1214,18 @@ class _CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 2))
+        ],
       ),
       child: Text(
         _fmt(count),
@@ -1006,7 +1257,8 @@ class _StatsAndProgress extends StatelessWidget {
               (i) => Expanded(
             child: Padding(
               padding: EdgeInsets.only(right: i == 3 ? 0 : 14),
-              child: const _SkeletonBar(width: double.infinity, height: 90),
+              child: const _SkeletonBar(
+                  width: double.infinity, height: 90),
             ),
           ),
         );
@@ -1015,10 +1267,12 @@ class _StatsAndProgress extends StatelessWidget {
           children: List.generate(
             4,
                 (i) => Padding(
-              padding: EdgeInsets.only(bottom: i == 3 ? 0 : 14),
+              padding:
+              EdgeInsets.only(bottom: i == 3 ? 0 : 14),
               child: const SizedBox(
                 height: 90,
-                child: _SkeletonBar(width: double.infinity, height: 90),
+                child: _SkeletonBar(
+                    width: double.infinity, height: 90),
               ),
             ),
           ),
@@ -1026,10 +1280,28 @@ class _StatsAndProgress extends StatelessWidget {
       });
     } else {
       final tiles = [
-        _AnimatedStat(icon: Icons.folder_open_outlined, label: 'Projects', value: d.assignedCount, tint: _kIndigo),
-        _AnimatedStat(icon: Icons.people_outline, label: 'Clients', value: d.distinctClients, tint: _kTeal),
-        _AnimatedStat(icon: Icons.attach_money, label: 'Earnings', value: d.totalBudgetCents ~/ 100, currency: true, tint: _kViolet),
-        _AnimatedStat(icon: Icons.emoji_events_outlined, label: 'Success', value: d.successPercent, suffix: '%', tint: _kIndigo),
+        _AnimatedStat(
+            icon: Icons.folder_open_outlined,
+            label: 'Projects',
+            value: d.assignedCount,
+            tint: _kIndigo),
+        _AnimatedStat(
+            icon: Icons.people_outline,
+            label: 'Clients',
+            value: d.distinctClients,
+            tint: _kTeal),
+        _AnimatedStat(
+            icon: Icons.attach_money,
+            label: 'Earnings',
+            value: d.totalBudgetCents ~/ 100,
+            currency: true,
+            tint: _kViolet),
+        _AnimatedStat(
+            icon: Icons.emoji_events_outlined,
+            label: 'Success',
+            value: d.successPercent,
+            suffix: '%',
+            tint: _kIndigo),
       ];
       content = LayoutBuilder(builder: (ctx, c) {
         final isWide = c.maxWidth > 600;
@@ -1058,8 +1330,12 @@ class _StatsAndProgress extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Performance Overview',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700, color: _kHeading)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: _kHeading)),
             const SizedBox(height: 16),
             content
           ],
@@ -1093,7 +1369,10 @@ class _GlowingAvatar extends StatelessWidget {
                 1
               ]),
               boxShadow: [
-                BoxShadow(color: Color(0x3300C2A8), blurRadius: 30, offset: Offset(0, 8))
+                BoxShadow(
+                    color: Color(0x3300C2A8),
+                    blurRadius: 30,
+                    offset: Offset(0, 8))
               ])),
       Container(
           width: 108,
@@ -1103,8 +1382,10 @@ class _GlowingAvatar extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 4),
               color: _kTeal.withValues(alpha: .15)),
           child: loading
-              ? const Center(child: CircularProgressIndicator(strokeWidth: 3))
-              : const Icon(Icons.person, size: 48, color: Colors.white))
+              ? const Center(
+              child: CircularProgressIndicator(strokeWidth: 3))
+              : const Icon(Icons.person,
+              size: 48, color: Colors.white))
     ]);
   }
 }
@@ -1113,7 +1394,8 @@ class _AnimatedStarRating extends StatefulWidget {
   final double rating;
   const _AnimatedStarRating({required this.rating});
   @override
-  State<_AnimatedStarRating> createState() => _AnimatedStarRatingState();
+  State<_AnimatedStarRating> createState() =>
+      _AnimatedStarRatingState();
 }
 
 class _AnimatedStarRatingState extends State<_AnimatedStarRating>
@@ -1122,7 +1404,9 @@ class _AnimatedStarRatingState extends State<_AnimatedStarRating>
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..forward();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))
+      ..forward();
   }
 
   @override
@@ -1134,7 +1418,8 @@ class _AnimatedStarRatingState extends State<_AnimatedStarRating>
   @override
   Widget build(BuildContext context) {
     final full = widget.rating.floor();
-    final half = (widget.rating - full) >= 0.25 && (widget.rating - full) < 0.75;
+    final half = (widget.rating - full) >= 0.25 &&
+        (widget.rating - full) < 0.75;
     return Row(
       children: List.generate(5, (i) {
         IconData ic;
@@ -1146,7 +1431,10 @@ class _AnimatedStarRatingState extends State<_AnimatedStarRating>
           ic = Icons.star_outline;
         }
         return ScaleTransition(
-          scale: CurvedAnimation(parent: _c, curve: Interval(i / 5, 1, curve: Curves.easeOutBack)),
+          scale: CurvedAnimation(
+              parent: _c,
+              curve:
+              Interval(i / 5, 1, curve: Curves.easeOutBack)),
           child: Icon(ic, color: Colors.amber, size: 22),
         );
       }),
@@ -1183,8 +1471,10 @@ class _AnimatedStatState extends State<_AnimatedStat>
   @override
   void initState() {
     super.initState();
-    _ctl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
-    _anim = CurvedAnimation(parent: _ctl, curve: Curves.easeOutCubic);
+    _ctl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1100));
+    _anim =
+        CurvedAnimation(parent: _ctl, curve: Curves.easeOutCubic);
     _ctl.forward();
   }
 
@@ -1210,14 +1500,18 @@ class _AnimatedStatState extends State<_AnimatedStat>
     return AnimatedBuilder(
       animation: _anim,
       builder: (ctx, _) {
-        final val = (widget.value * _anim.value).clamp(0, widget.value).round();
+        final val = (widget.value * _anim.value)
+            .clamp(0, widget.value)
+            .round();
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: widget.tint.withValues(alpha: isDark ? 0.22 : 0.08),
+            color: widget.tint
+                .withValues(alpha: isDark ? 0.22 : 0.08),
             border: Border.all(
-              color: Colors.white.withValues(alpha: isDark ? 0.18 : 0.38),
+              color: Colors.white
+                  .withValues(alpha: isDark ? 0.18 : 0.38),
             ),
           ),
           child: Row(
@@ -1227,20 +1521,29 @@ class _AnimatedStatState extends State<_AnimatedStat>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [widget.tint, widget.tint.withValues(alpha: 0.4)],
+                    colors: [
+                      widget.tint,
+                      widget.tint.withValues(alpha: 0.4)
+                    ],
                   ),
                 ),
-                child: Icon(widget.icon, color: Colors.white, size: 22),
+                child: Icon(widget.icon,
+                    color: Colors.white, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${widget.prefix ?? ''}${_format(val)}${widget.suffix ?? ''}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: _kHeading, fontWeight: FontWeight.w700),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(
+                          color: _kHeading,
+                          fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1248,14 +1551,18 @@ class _AnimatedStatState extends State<_AnimatedStat>
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
-                          ?.copyWith(color: _kMuted, fontWeight: FontWeight.w500),
+                          ?.copyWith(
+                          color: _kMuted,
+                          fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 6),
                     LinearProgressIndicator(
                       value: (val / widget.value).clamp(0, 1),
                       minHeight: 4,
-                      backgroundColor: widget.tint.withValues(alpha: 0.15),
-                      valueColor: AlwaysStoppedAnimation(widget.tint),
+                      backgroundColor:
+                      widget.tint.withValues(alpha: 0.15),
+                      valueColor:
+                      AlwaysStoppedAnimation(widget.tint),
                     )
                   ],
                 ),
@@ -1279,12 +1586,19 @@ class _AboutSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('About',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: _kHeading, fontWeight: FontWeight.w600)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(
+                    color: _kHeading,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text(
               'Passionate freelancer building performant apps with delightful UX.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _kBody),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: _kBody),
             ),
           ],
         ),
@@ -1299,7 +1613,8 @@ class _AboutSection extends StatelessWidget {
 class _ContactSectionRemote extends StatefulWidget {
   const _ContactSectionRemote();
   @override
-  State<_ContactSectionRemote> createState() => _ContactSectionRemoteState();
+  State<_ContactSectionRemote> createState() =>
+      _ContactSectionRemoteState();
 }
 
 class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
@@ -1338,20 +1653,30 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
   }
 
   Future<void> _showLinkDialog({ContactLinkDto? existing}) async {
-    final labelCtrl = TextEditingController(text: existing?.label ?? '');
-    final urlCtrl = TextEditingController(text: existing?.url ?? '');
+    final labelCtrl =
+    TextEditingController(text: existing?.label ?? '');
+    final urlCtrl =
+    TextEditingController(text: existing?.url ?? '');
     final formKey = GlobalKey<FormState>();
 
     IconData _pickIcon(String url, String label) {
       final l = label.toLowerCase();
       final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
-      if (host.contains('linkedin') || l.contains('linkedin')) return Icons.work_outline;
-      if (host.contains('github') || l.contains('github')) return Icons.code;
-      if (host.contains('twitter') || host.contains('x.com') || l.contains('twitter')) return Icons.alternate_email;
+      if (host.contains('linkedin') || l.contains('linkedin')) {
+        return Icons.work_outline;
+      }
+      if (host.contains('github') || l.contains('github')) {
+        return Icons.code;
+      }
+      if (host.contains('twitter') ||
+          host.contains('x.com') ||
+          l.contains('twitter')) return Icons.alternate_email;
       if (host.contains('youtube')) return Icons.ondemand_video;
       if (host.contains('instagram')) return Icons.camera_alt_outlined;
       if (host.contains('facebook')) return Icons.facebook;
-      if (host.contains('t.me') || host.contains('telegram')) return Icons.send_outlined;
+      if (host.contains('t.me') || host.contains('telegram')) {
+        return Icons.send_outlined;
+      }
       return Icons.link;
     }
 
@@ -1364,15 +1689,23 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             TextFormField(
               controller: labelCtrl,
-              decoration: const InputDecoration(labelText: 'Label'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              decoration:
+              const InputDecoration(labelText: 'Label'),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Required'
+                  : null,
             ),
             TextFormField(
               controller: urlCtrl,
-              decoration: const InputDecoration(labelText: 'URL (https://...)'),
+              decoration: const InputDecoration(
+                  labelText: 'URL (https://...)'),
               validator: (v) {
-                final uri = v != null ? Uri.tryParse(v.trim()) : null;
-                final ok = uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+                final uri =
+                v != null ? Uri.tryParse(v.trim()) : null;
+                final ok = uri != null &&
+                    (uri.scheme == 'http' ||
+                        uri.scheme == 'https') &&
+                    uri.host.isNotEmpty;
                 return ok ? null : 'Enter a valid URL';
               },
             ),
@@ -1382,19 +1715,25 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
               const SizedBox(width: 8),
               ValueListenableBuilder(
                 valueListenable: urlCtrl,
-                builder: (_, __, ___) => Icon(_pickIcon(urlCtrl.text, labelCtrl.text)),
+                builder: (_, __, ___) =>
+                    Icon(_pickIcon(urlCtrl.text, labelCtrl.text)),
               )
             ])
           ]),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               try {
-                final userId = SessionService.instance.user?.id;
-                if (userId == null) throw Exception('Not signed in');
+                final userId =
+                    SessionService.instance.user?.id;
+                if (userId == null) {
+                  throw Exception('Not signed in');
+                }
                 if (existing == null) {
                   await ContactApi().createLink(
                     userId: userId,
@@ -1438,8 +1777,12 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
         title: const Text('Delete link?'),
         content: Text('Remove "${link.label}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -1448,11 +1791,13 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
         await ContactApi().deleteLink(link.id);
         await _loadLinks();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deleted')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Deleted')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delete failed')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Delete failed')));
         }
       }
     }
@@ -1461,27 +1806,41 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
   Future<void> _openLink(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open')));
+    if (!await launchUrl(uri,
+        mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open')));
     }
   }
 
   IconData _iconFor(ContactLinkDto l) {
     final host = Uri.tryParse(l.url)?.host.toLowerCase() ?? '';
     final label = l.label.toLowerCase();
-    if (host.contains('linkedin') || label.contains('linkedin')) return Icons.work_outline;
-    if (host.contains('github') || label.contains('github')) return Icons.code;
-    if (host.contains('twitter') || host.contains('x.com') || label.contains('twitter')) return Icons.alternate_email;
+    if (host.contains('linkedin') || label.contains('linkedin')) {
+      return Icons.work_outline;
+    }
+    if (host.contains('github') || label.contains('github')) {
+      return Icons.code;
+    }
+    if (host.contains('twitter') ||
+        host.contains('x.com') ||
+        label.contains('twitter')) {
+      return Icons.alternate_email;
+    }
     if (host.contains('youtube')) return Icons.ondemand_video;
     if (host.contains('instagram')) return Icons.camera_alt_outlined;
     if (host.contains('facebook')) return Icons.facebook;
-    if (host.contains('t.me') || host.contains('telegram')) return Icons.send_outlined;
+    if (host.contains('t.me') || host.contains('telegram')) {
+      return Icons.send_outlined;
+    }
     return Icons.link;
   }
 
   @override
   Widget build(BuildContext context) {
-    final email = SessionService.instance.user?.email ?? 'user@example.com';
+    final email =
+        SessionService.instance.user?.email ?? 'user@example.com';
 
     Widget content;
     if (_loading) {
@@ -1496,7 +1855,10 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
     } else if (_error != null) {
       content = Row(
         children: [
-          Expanded(child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+          Expanded(
+              child: Text(_error!,
+                  style:
+                  const TextStyle(color: Colors.redAccent))),
           TextButton(onPressed: _loadLinks, child: const Text('Retry')),
         ],
       );
@@ -1507,8 +1869,12 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
           Row(
             children: [
               Text('Contact',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _kHeading, fontWeight: FontWeight.w600)),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(
+                      color: _kHeading,
+                      fontWeight: FontWeight.w600)),
               const Spacer(),
               Tooltip(
                 message: 'Add link',
@@ -1535,14 +1901,16 @@ class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
           ),
           const SizedBox(height: 14),
           if (_links.isEmpty)
-            const Text('No links yet — Add link', style: TextStyle(color: _kMuted))
+            const Text('No links yet — Add link',
+                style: TextStyle(color: _kMuted))
           else
             Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
               children: _links.map<Widget>((link) {
                 return GestureDetector(
-                  onLongPress: () => _showLinkDialog(existing: link),
+                  onLongPress: () =>
+                      _showLinkDialog(existing: link),
                   child: InputChip(
                     label: Text(link.label),
                     avatar: Icon(_iconFor(link)),
@@ -1580,24 +1948,32 @@ class _RecentActivitySection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
               children: [
                 Text('Recent Activity',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: _kHeading, fontWeight: FontWeight.w600)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(
+                        color: _kHeading,
+                        fontWeight: FontWeight.w600)),
                 TextButton(onPressed: () {}, child: const Text('View all')),
               ],
             ),
             const SizedBox(height: 8),
             for (final a in activities)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding:
+                const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [
-                    const Icon(Icons.bolt_outlined, size: 18, color: _kViolet),
+                    const Icon(Icons.bolt_outlined,
+                        size: 18, color: _kViolet),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(a, style: const TextStyle(color: _kBody)),
+                      child: Text(a,
+                          style: const TextStyle(color: _kBody)),
                     ),
                   ],
                 ),
@@ -1621,8 +1997,13 @@ class _QuickActions extends StatelessWidget {
           children: const [
             _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
             _ActionChip(icon: Icons.schedule, label: 'Availability'),
-            _ActionChip(icon: Icons.account_balance_wallet_outlined, label: 'Withdraw'),
-            _ActionChip(icon: Icons.ios_share_outlined, label: 'Share card', share: true),
+            _ActionChip(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'Withdraw'),
+            _ActionChip(
+                icon: Icons.ios_share_outlined,
+                label: 'Share card',
+                share: true),
           ],
         ),
       ),
@@ -1678,7 +2059,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
       return;
     }
     try {
-      final items = await HomeApi().getPortfolioItems(d.userId, mediaType: _mediaTypes[_tabIndex]);
+      final items = await HomeApi().getPortfolioItems(d.userId,
+          mediaType: _mediaTypes[_tabIndex]);
       if (mounted) {
         setState(() {
           _items = items;
@@ -1722,7 +2104,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
           allowedExtensions = null;
       }
       final result = fileType == FileType.custom
-          ? await FilePicker.platform.pickFiles(type: fileType, allowedExtensions: allowedExtensions)
+          ? await FilePicker.platform.pickFiles(
+          type: fileType, allowedExtensions: allowedExtensions)
           : await FilePicker.platform.pickFiles(type: fileType);
       if (result == null || result.files.isEmpty) {
         setState(() {
@@ -1734,19 +2117,24 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
       final user = HomeData.of(context).data;
       if (user == null) throw Exception('User not loaded');
       // 1. Get presigned upload URL
-      final key = '${mediaType.toLowerCase()}s/${user.userId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      final key =
+          '${mediaType.toLowerCase()}s/${user.userId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
       final presignedUrl = await S3Service.getPresignedUploadUrl(key);
       // 2. Upload file to S3
       if (kIsWeb) {
-        if (result.files.single.bytes == null) throw Exception('File bytes are null');
-        await S3Service.uploadBytesToS3(presignedUrl, result.files.single.bytes!);
+        if (result.files.single.bytes == null) {
+          throw Exception('File bytes are null');
+        }
+        await S3Service.uploadBytesToS3(
+            presignedUrl, result.files.single.bytes!);
       } else {
         final file = File(result.files.single.path!);
         await S3Service.uploadFileToS3(presignedUrl, file);
       }
       // 3. Register portfolio item in backend (send only metadata)
       final fileUrl = EnvConfig.s3FileUrl(key);
-      final uri = Uri.parse('${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
+      final uri = Uri.parse(
+          '${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
       final Map<String, String> fields = {
         'freelancerId': user.userId.toString(),
         'title': fileName,
@@ -1787,9 +2175,14 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1),
+          border: Border.all(
+              color: Colors.white.withValues(alpha: 0.9),
+              width: 1),
           boxShadow: const [
-            BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 2)),
+            BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 8,
+                offset: Offset(0, 2)),
           ],
         ),
         child: Row(
@@ -1797,7 +2190,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
           children: List.generate(3, (i) {
             final selected = i == _tabIndex;
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 4),
               child: Material(
                 color: Colors.transparent,
                 child: Ink(
@@ -1820,7 +2214,8 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
                       }
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1828,18 +2223,26 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
                             labels[i],
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: selected ? Colors.white : _kBody,
+                              color:
+                              selected ? Colors.white : _kBody,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: selected ? Colors.white : Colors.white.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(999),
+                              color: selected
+                                  ? Colors.white
+                                  : Colors.white
+                                  .withValues(alpha: 0.85),
+                              borderRadius:
+                              BorderRadius.circular(999),
                             ),
                             child: Text(
-                              selected ? _items.length.toString() : '',
+                              selected
+                                  ? _items.length.toString()
+                                  : '',
                               style: const TextStyle(
                                 color: _kHeading,
                                 fontSize: 12,
@@ -1861,7 +2264,11 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
 
     Widget _grid(List<HomePortfolioDto> list) {
       return LayoutBuilder(builder: (ctx, c) {
-        final cols = c.maxWidth > 1100 ? 4 : c.maxWidth > 820 ? 3 : 2;
+        final cols = c.maxWidth > 1100
+            ? 4
+            : c.maxWidth > 820
+            ? 3
+            : 2;
         const gap = 16.0;
         final w = (c.maxWidth - (cols - 1) * gap) / cols;
 
@@ -1895,8 +2302,7 @@ class _PortfolioSectionState extends State<_PortfolioSection> {
         return Wrap(
           spacing: 16,
           runSpacing: 16,
-          children: List.generate(
-              6, (i) => const SizedBox(width: 160, height: 120, child: _Shimmer())),
+          children: List.generate(6, (i) => const SizedBox(width: 160, height: 120, child: _Shimmer())),
         );
       }
       if (_items.isEmpty) {
@@ -2101,7 +2507,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
     final borderRadius = BorderRadius.circular(18);
     final heroTag = 'portfolio_${widget.item.id}';
 
-    // Media layer: either gradient+icon for doc without thumbnail, or SAFE Image.network (with Shimmer only while loading)
+    // Media layer
     Widget mediaLayer;
     final isDoc = _kind == _MediaKind.document;
     final thumbEmpty = widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty;
@@ -2116,12 +2522,10 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           ),
         ),
         child: Center(
-          child: Icon(_docIcon, size: 56, color: Colors.white.withValues(alpha: 0.95)),
-        ),
+            child: Icon(_docIcon, size: 56, color: Colors.white.withValues(alpha: 0.95))),
       );
     } else {
-      final imageUrl =
-      (widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty)
+      final imageUrl = (widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty)
           ? widget.item.fileUrl
           : widget.item.thumbnailUrl!;
       mediaLayer = _SafeNetworkImage(
@@ -2220,7 +2624,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     ),
                   ),
 
-                // animated shine — ONLY while loading (never after media is loaded)
+                // animated shine — ONLY while loading
                 if (!_mediaLoaded)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -2406,10 +2810,10 @@ class _ActionIcon extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.9),
         child: InkWell(
           onTap: onTap,
-          child: SizedBox(
+          child: const SizedBox(
             width: 34,
             height: 34,
-            child: Icon(icon, size: 18, color: _kHeading),
+            child: Icon(Icons.circle, size: 0, color: Colors.transparent),
           ),
         ),
       ),
@@ -2425,8 +2829,9 @@ class _ActiveContracts extends StatelessWidget {
     final home = HomeData.of(context);
     final d = home.data;
     final loading = home.loading;
-    final active =
-    (d?.recentAssignedJobs ?? []).where((j) => j.status == 'ASSIGNED').toList();
+    final active = (d?.recentAssignedJobs ?? [])
+        .where((j) => j.status == 'ASSIGNED')
+        .toList();
 
     return HoverScale(
       child: GlassCard(
@@ -2604,8 +3009,6 @@ class _AddPortfolioFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
       onPressed: () {
-        // Find the nearest _PortfolioSectionState and call its upload button
-        // (Optional) You can wire this via a GlobalKey if you want direct control.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tap "Upload Portfolio" to add an item.')),
         );
@@ -2867,7 +3270,10 @@ class _ClickableRow extends StatelessWidget {
           children: [
             Icon(icon),
             const SizedBox(width: 8),
-            Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             Flexible(
               child: Text(
                 value,
@@ -2942,7 +3348,7 @@ class _HoverScaleState extends State<HoverScale> {
 
 class GlassCard extends StatelessWidget {
   final Widget child;
-  const GlassCard({required this.child});
+  const GlassCard({required this.child, super.key});
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -2999,7 +3405,9 @@ class ImagePreviewDialog extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.title.isEmpty ? 'Image' : item.title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -3008,8 +3416,10 @@ class ImagePreviewDialog extends StatelessWidget {
                   child: const Text('Open'),
                 ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
                 ),
               ],
             ),
@@ -3114,7 +3524,9 @@ class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -3122,11 +3534,14 @@ class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
                   IconButton(
                     tooltip: 'Retry',
                     onPressed: _initVideo,
-                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    icon: const Icon(Icons.refresh,
+                        color: Colors.white),
                   ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
                 ),
               ],
             ),
@@ -3138,13 +3553,18 @@ class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  Text(_errorText ?? 'Error', style: const TextStyle(color: Colors.white70)),
+                  Text(_errorText ?? 'Error',
+                      style:
+                      const TextStyle(color: Colors.white70)),
                   const SizedBox(height: 12),
-                  const Icon(Icons.error_outline, size: 56, color: Colors.white54),
+                  const Icon(Icons.error_outline,
+                      size: 56, color: Colors.white54),
                 ],
               ),
             )
-          else if (_chewieController != null && _videoController != null && _videoController!.value.isInitialized)
+          else if (_chewieController != null &&
+              _videoController != null &&
+              _videoController!.value.isInitialized)
             AspectRatio(
               aspectRatio: _videoController!.value.aspectRatio == 0
                   ? 16 / 9
@@ -3176,7 +3596,7 @@ Future<Uint8List> _downloadBytes(String url) async {
 class _PdfPreviewDialog extends StatefulWidget {
   final String title;
   final Uint8List bytes;
-  const _PdfPreviewDialog({required this.title, required this.bytes});
+  const _PdfPreviewDialog({required this.title, required this.bytes, super.key});
 
   @override
   State<_PdfPreviewDialog> createState() => _PdfPreviewDialogState();
@@ -3215,13 +3635,17 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
                 ),
               ],
             ),
