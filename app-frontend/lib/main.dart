@@ -391,7 +391,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                               child: BackdropFilter(
                                 filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                                 child: Container(
-                                  padding: const EdgeInsets.all(24),
+                                  // ↑ added extra vertical padding for breathing room
+                                  padding: const EdgeInsets.fromLTRB(24, 36, 24, 36),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.06),
                                     borderRadius: BorderRadius.circular(20),
@@ -400,10 +401,21 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                   child: LayoutBuilder(
                                     builder: (context, constraints){
                                       final available = constraints.maxWidth;
-                                      final cardWidth = available >= 760 ? 360.0 : available < 340 ? available : (available - 0);
-                                      final sideBySide = available >= 760;
+                                      final isWide = available >= 760;
+                                      final cardWidth = isWide ? 360.0 : available < 340 ? available : (available - 0);
+                                      final sideBySide = isWide;
+
+                                      // Responsive hero sizing
+                                      final heroMark = isWide ? 56.0 : 46.0;
+                                      final heroFont = isWide ? 44.0 : 36.0;
+
+                                      // Professional vertical gap between logo and cards (36–72 px)
+                                      final screenH = MediaQuery.of(context).size.height;
+                                      final verticalGap = math.min(math.max(screenH * 0.08, 36.0), 72.0);
+
                                       final headingOffset = _parallaxY * -20; // invert for subtle lift
                                       final cardsOffset = _parallaxY * 12;
+
                                       final children = [
                                         _ActionCard(
                                           icon: Icons.person_outline,
@@ -435,24 +447,40 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                               // Center hero brand logo (white/ inverse)
                                               Transform.translate(
                                                 offset: Offset(0, headingOffset),
-                                                child: const Align(
+                                                child: Align(
                                                   alignment: Alignment.center,
                                                   child: _GmwLogo(
-                                                    markSize: 50,
-                                                    fontSize: 40,
+                                                    markSize: heroMark,
+                                                    fontSize: heroFont,
                                                     showTagline: true,
                                                     onDark: true,
                                                   ),
                                                 ),
                                               ),
-                                              const SizedBox(height: 22),
+                                              SizedBox(height: verticalGap),
                                               Transform.translate(
                                                 offset: Offset(0, cardsOffset),
-                                                child: sideBySide ? Row(
+                                                child: sideBySide
+                                                    ? Row(
                                                   mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(width:20)]],
-                                                ) : Column(children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(height:16)]]),
+                                                  children: [
+                                                    for (int i = 0; i < children.length; i++) ...[
+                                                      children[i],
+                                                      if (i < children.length - 1) const SizedBox(width: 20),
+                                                    ]
+                                                  ],
+                                                )
+                                                    : Column(
+                                                  children: [
+                                                    for (int i = 0; i < children.length; i++) ...[
+                                                      children[i],
+                                                      if (i < children.length - 1) const SizedBox(height: 16),
+                                                    ]
+                                                  ],
+                                                ),
                                               ),
+                                              // small bottom spacer so cards don’t hug the panel edge
+                                              SizedBox(height: verticalGap * 0.6),
                                             ],
                                           ),
                                         ),
@@ -548,43 +576,36 @@ class _ActionCardState extends State<_ActionCard> with SingleTickerProviderState
     // ——— Professional, lighter typography ———
     final titleBase = Theme.of(context).textTheme.titleLarge?.copyWith(
       color: Colors.white,
-      fontWeight: FontWeight.w600,   // was w800
+      fontWeight: FontWeight.w600,   // lighter than w800
       height: 1.15,
       letterSpacing: 0.15,
-      fontSize: 20,                  // was 22
-      shadows: const [
-        Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1)),
-      ],
-    ) ??
-        const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-          height: 1.15,
-          letterSpacing: 0.15,
-          fontSize: 20,
-          shadows: [Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1))],
-        );
+      fontSize: 20,
+      shadows: const [ Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1)) ],
+    ) ?? const TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.w600,
+      height: 1.15,
+      letterSpacing: 0.15,
+      fontSize: 20,
+      shadows: [Shadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1))],
+    );
 
     final subtitleBase = Theme.of(context).textTheme.bodyLarge?.copyWith(
       color: Colors.white.withOpacity(0.95),
-      fontWeight: FontWeight.w500,   // was w600
+      fontWeight: FontWeight.w500,
       height: 1.35,
       letterSpacing: 0.05,
-      fontSize: 14.5,                // was 15.5
-      shadows: const [
-        Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1)),
-      ],
-    ) ??
-        const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w500,
-          height: 1.35,
-          letterSpacing: 0.05,
-          fontSize: 14.5,
-          shadows: [Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1))],
-        );
+      fontSize: 14.5,
+      shadows: const [ Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1)) ],
+    ) ?? const TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.w500,
+      height: 1.35,
+      letterSpacing: 0.05,
+      fontSize: 14.5,
+      shadows: [Shadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 1))],
+    );
 
-    // Subtle hover emphasis without getting heavier
     final titleStyle = titleBase.copyWith(
       letterSpacing: _hovered ? 0.18 : 0.15,
       color: Colors.white.withOpacity(_hovered ? 1.0 : 0.98),
