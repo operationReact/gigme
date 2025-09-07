@@ -20,6 +20,155 @@ import 'services/session_service.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
+// ── Brand palette used by the logo ─────────────────────────────────────────────
+const _kTeal = Color(0xFF00C2A8);
+const _kIndigo = Color(0xFF3B82F6);
+const _kViolet = Color(0xFF7C3AED);
+const _kHeading = Color(0xFF111827);
+const _kMuted = Color(0xFF6B7280);
+
+/// ===== Brand Logo (same widget used on freelancer home) ======================
+// ── Brand palette (keep yours as-is) ──
+// const _kTeal = Color(0xFF00C2A8);
+// const _kIndigo = Color(0xFF3B82F6);
+// const _kViolet = Color(0xFF7C3AED);
+// const _kHeading = Color(0xFF111827);
+// const _kMuted = Color(0xFF6B7280);
+
+class _GmwLogo extends StatelessWidget {
+  final double markSize;
+  final double fontSize;
+  final bool showTagline;
+  final double opacity;
+  final bool onDark; // true when logo sits on dark backgrounds
+
+  const _GmwLogo({
+    this.markSize = 32,
+    this.fontSize = 24,
+    this.showTagline = false,
+    this.opacity = 1,
+    this.onDark = false,
+    super.key,
+  });
+
+  const _GmwLogo.compact()
+      : this(markSize: 26, fontSize: 20, showTagline: false);
+
+  const _GmwLogo.watermark()
+      : this(markSize: 72, fontSize: 56, showTagline: false, opacity: .06);
+
+  @override
+  Widget build(BuildContext context) {
+    final head = onDark ? Colors.white : _kHeading;
+    final muted = onDark ? Colors.white70 : _kMuted;
+
+    final wordmark = Text.rich(
+      TextSpan(children: [
+        TextSpan(
+          text: 'Gig',
+          style: TextStyle(color: head, fontWeight: FontWeight.w800),
+        ),
+        const TextSpan(
+          text: 'Me',
+          style: TextStyle(color: _kTeal, fontWeight: FontWeight.w800),
+        ),
+        TextSpan(
+          text: 'Work',
+          style: TextStyle(color: head, fontWeight: FontWeight.w800),
+        ),
+      ]),
+      // Tighter leading + tiny tracking for a crisp logotype
+      style: TextStyle(fontSize: fontSize, height: 1.0, letterSpacing: 0.2),
+    );
+
+    // ✨ Refined tagline: tighter line height, subtle tracking, slight upward nudge
+    final tagline = Padding(
+      padding: const EdgeInsets.only(top: 2), // visually tucks under the wordmark
+      child: Text(
+        'People Need People',
+        textAlign: TextAlign.left,
+        textHeightBehavior: const TextHeightBehavior(
+          applyHeightToFirstAscent: false,
+          applyHeightToLastDescent: false,
+        ),
+        style: TextStyle(
+          color: (onDark ? Colors.white.withOpacity(0.92) : muted.withOpacity(0.92)),
+          fontSize: (fontSize * 0.46).clamp(10.0, 14.0), // scales with wordmark
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.35,
+          height: 1.05, // tightens baseline alignment
+        ),
+      ),
+    );
+
+    return Opacity(
+      opacity: opacity,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _GmwMark(size: markSize),
+          const SizedBox(width: 10),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              wordmark,
+              if (showTagline) tagline,
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GmwMark extends StatelessWidget {
+  final double size;
+  const _GmwMark({required this.size, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = size;
+    final w = size * 1.7;
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: h,
+              height: h,
+              decoration: const BoxDecoration(color: _kTeal, shape: BoxShape.circle),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              width: h,
+              height: h,
+              decoration: const BoxDecoration(color: _kViolet, shape: BoxShape.circle),
+            ),
+          ),
+          Container(
+            width: w * 0.74,
+            height: h * 0.34,
+            decoration: BoxDecoration(
+              color: _kIndigo,
+              borderRadius: BorderRadius.circular(h),
+              border: Border.all(color: Colors.white, width: h * 0.10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 void main() {
   runApp(const MyApp());
 }
@@ -188,7 +337,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Gigmework'),
+        // Small brand logo at top-left (white text for dark video header)
+        title: const _GmwLogo(markSize: 22, fontSize: 18, showTagline: false, onDark: true),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -266,8 +416,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                       final children = [
                                         _ActionCard(
                                           icon: Icons.person_outline,
-                                          title: 'I am a Freelancer or Professional',
-                                          subtitle: 'Create a stellar profile and showcase your work',
+                                          title: 'I Am A Freelancer or Professional',
+                                          subtitle: 'Create a profile, showcase your skills, and get hired',
                                           gradient: LinearGradient(colors: [cs.secondary, cs.tertiary]),
                                           heroTag: 'hero-freelancer',
                                           width: cardWidth,
@@ -275,37 +425,47 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                                         ),
                                         _ActionCard(
                                           icon: Icons.business_center_outlined,
-                                          title: 'I need a freelancer or professional',
-                                          subtitle: 'Post freelancing jobs and hire verified talent',
+                                          title: 'I Need a Freelancer or Professional',
+                                          subtitle: 'Post jobs and hire verified talent',
                                           gradient: LinearGradient(colors: [cs.tertiary, cs.secondary]),
                                           heroTag: 'hero-client',
                                           width: cardWidth,
                                           onTap: () => Navigator.of(context).pushNamed(SignInClientPage.routeName),
                                         ),
                                       ];
-                                      return Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          Transform.translate(
-                                            offset: Offset(0, headingOffset),
-                                            child: Column(
-                                              children: [
-                                                Text('GigMeWork', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-                                                const SizedBox(height: 8),
-                                                Text('People Need People', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70)),
-                                              ],
-                                            ),
+                                      return SingleChildScrollView(
+                                        // Allow scrolling when vertical space is tight to avoid RenderFlex overflow
+                                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              // Center hero brand logo (white/ inverse)
+                                              Transform.translate(
+                                                offset: Offset(0, headingOffset),
+                                                child: const Align(
+                                                  alignment: Alignment.center,
+                                                  child: _GmwLogo(
+                                                    markSize: 50,
+                                                    fontSize: 40,
+                                                    showTagline: true,
+                                                    onDark: true,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 22),
+                                              Transform.translate(
+                                                offset: Offset(0, cardsOffset),
+                                                child: sideBySide ? Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(width:20)]],
+                                                ) : Column(children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(height:16)]]),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(height: 22),
-                                          Transform.translate(
-                                            offset: Offset(0, cardsOffset),
-                                            child: sideBySide ? Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(width:20)]],
-                                            ) : Column(children: [for (int i=0;i<children.length;i++) ...[children[i], if(i<children.length-1) const SizedBox(height:16)]]),
-                                          ),
-                                        ],
+                                        ),
                                       );
                                     },
                                   ),
