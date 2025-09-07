@@ -93,37 +93,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
     // TODO: Implement navigation or action for applying to work
   }
 
-  // NEW: Primary tabs UI
-  Widget _primaryTabs() {
-    Widget chip(_PrimaryTab tab, String label, IconData icon) {
-      final selected = _currentTab == tab;
-      return ChoiceChip(
-        selected: selected,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 6),
-            Text(label),
-          ],
-        ),
-        onSelected: (_) => setState(() => _currentTab = tab),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      );
-    }
-
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        chip(_PrimaryTab.feed, 'Creator feed', Icons.dynamic_feed_outlined),
-        chip(_PrimaryTab.portfolio, 'Portfolio', Icons.work_outline),
-        chip(_PrimaryTab.jobs, 'Jobs', Icons.work_history_outlined),
-      ],
-    );
-  }
-
   // NEW: Only one big section rendered based on the selected tab
   Widget _selectedSection(int? uid) {
     switch (_currentTab) {
@@ -267,7 +236,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                             _HeaderHero(isWide: isWide),
                             const SizedBox(height: 12),
 
-                            // ✅ NEW: Profile Card (left) + Performance Overview (right)
+                            // ✅ Profile Card (left) + Performance Overview (right)
                             if (isWide)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,11 +268,15 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                             const _QuickActions(),
                             const SizedBox(height: 16),
 
-                            // NEW: Top-level primary tabs
-                            GlassCard(child: _primaryTabs()),
+                            // ✅ Rich primary navigation bar (replaces the old chips)
+                            _PrimaryNavBar(
+                              current: _currentTab,
+                              onChanged: (t) => setState(() => _currentTab = t),
+                              jobsBadge: _newJobsCount,
+                            ),
                             const SizedBox(height: 16),
 
-                            // NEW: Only the selected section renders
+                            // Only the selected section renders
                             _selectedSection(uid),
 
                             const SizedBox(height: 24),
@@ -749,6 +722,247 @@ class _MetricPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(label, style: const TextStyle(color: _kMuted, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+// ✅ RICH PRIMARY NAV BAR (animated pill + badge) — PERFECT CENTERING
+class _PrimaryNavBar extends StatelessWidget {
+  final _PrimaryTab current;
+  final ValueChanged<_PrimaryTab> onChanged;
+  final int? jobsBadge;
+
+  const _PrimaryNavBar({
+    super.key,
+    required this.current,
+    required this.onChanged,
+    this.jobsBadge,
+  });
+
+  int get _index => current == _PrimaryTab.feed ? 0 : current == _PrimaryTab.portfolio ? 1 : 2;
+
+  List<Color> _gradFor(_PrimaryTab t) {
+    switch (t) {
+      case _PrimaryTab.feed:
+        return const [_kIndigo, _kViolet];
+      case _PrimaryTab.portfolio:
+        return const [Color(0xFF0EA5E9), _kViolet];
+      case _PrimaryTab.jobs:
+        return const [Color(0xFF22C55E), _kIndigo];
+    }
+  }
+
+  Alignment _slotAlignment(int index, int count) {
+    // maps 0..count-1 to -1..1
+    final step = count == 1 ? 0.0 : 2.0 / (count - 1);
+    return Alignment(-1.0 + index * step, 0.0);
+    // (-1,0) left, (0,0) center, (1,0) right
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Creator feed', 'Portfolio', 'Jobs'];
+    const icons  = [Icons.dynamic_feed_outlined, Icons.work_outline, Icons.work_history_outlined];
+
+    return HoverScale(
+      child: GlassCard(
+        child: LayoutBuilder(
+          builder: (ctx, c) {
+            const trackPadding = 6.0;
+            const itemCount = 3;
+            final trackWidth = c.maxWidth - (trackPadding * 2);
+            final slotWidth = trackWidth / itemCount;
+
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                height: 56,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.72),
+                        Colors.white.withValues(alpha: 0.64),
+                      ],
+                    ),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x09000000), blurRadius: 16, offset: Offset(0, 6)),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Animated selected pill sized to exactly one slot and centered using alignment
+                      Padding(
+                        padding: const EdgeInsets.all(trackPadding),
+                        child: AnimatedAlign(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          alignment: _slotAlignment(_index, itemCount),
+                          child: SizedBox(
+                            width: slotWidth,
+                            height: double.infinity,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: _gradFor(current),
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _gradFor(current).last.withValues(alpha: .30),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Buttons row — each button gets its *own fixed slot width* and full height
+                      Padding(
+                        padding: const EdgeInsets.all(trackPadding),
+                        child: Row(
+                          children: List.generate(itemCount, (i) {
+                            final tab = i == 0 ? _PrimaryTab.feed : i == 1 ? _PrimaryTab.portfolio : _PrimaryTab.jobs;
+                            final isSelected = i == _index;
+                            final showBadge = (tab == _PrimaryTab.jobs) && (jobsBadge != null) && (jobsBadge! > 0);
+
+                            return SizedBox(
+                              width: slotWidth,
+                              height: double.infinity,
+                              child: _NavButton(
+                                icon: icons[i],
+                                label: labels[i],
+                                selected: isSelected,
+                                onTap: () => onChanged(tab),
+                                trailingBadge: showBadge ? _CountBadge(count: jobsBadge!) : null,
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget? trailingBadge;
+
+  const _NavButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailingBadge,
+  });
+
+  @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+  AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+
+  @override
+  void didUpdateWidget(covariant _NavButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = widget.selected ? Colors.white : _kBody;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          widget.onTap();
+        },
+        child: SizedBox(
+          height: double.infinity,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ScaleTransition(
+                  scale: Tween(begin: 1.0, end: 1.08).animate(
+                    CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+                  ),
+                  child: Icon(widget.icon, size: 20, color: fg),
+                ),
+                const SizedBox(width: 8),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  style: TextStyle(
+                    color: fg,
+                    fontWeight: widget.selected ? FontWeight.w800 : FontWeight.w600,
+                    height: 1.0, // keeps vertical centering crisp
+                  ),
+                  child: Text(widget.label),
+                ),
+                if (widget.trailingBadge != null) ...[
+                  const SizedBox(width: 8),
+                  widget.trailingBadge!,
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  final int count;
+  const _CountBadge({required this.count});
+  String _fmt(int v) => v > 99 ? '99+' : '$v';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white),
+        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2))],
+      ),
+      child: Text(
+        _fmt(count),
+        style: const TextStyle(
+          color: _kHeading,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
       ),
     );
   }
