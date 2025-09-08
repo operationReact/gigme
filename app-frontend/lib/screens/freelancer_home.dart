@@ -18,6 +18,7 @@ import '../main.dart';
 import '../services/s3_service.dart';
 import 'package:http/http.dart' as http;
 import '../env.dart';
+import 'share_card_public.dart';
 
 // ✅ Contact imports
 import '../api/contact_api.dart';
@@ -1990,6 +1991,40 @@ class _RecentActivitySection extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions();
+
+  Future<void> _shareCard(BuildContext context) async {
+    final uid = HomeData
+        .of(context)
+        .data
+        ?.userId ?? SessionService.instance.user?.id;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in to share your card.')));
+      return;
+    }
+
+    final url = ShareCardPublicPage.buildUrlForUser(uid);
+
+    // Copy to clipboard + snackbar with quick preview
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Share link copied to clipboard'),
+        action: SnackBarAction(
+          label: 'Preview',
+          onPressed: () {
+            // Open via Navigator so creators can instantly preview
+            Navigator.of(context).pushNamed(
+              ShareCardPublicPage.routeName,
+              arguments: {'u': uid},
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return HoverScale(
@@ -1997,16 +2032,28 @@ class _QuickActions extends StatelessWidget {
         child: Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: const [
-            _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
-            _ActionChip(icon: Icons.schedule, label: 'Availability'),
-            _ActionChip(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'Withdraw'),
-            _ActionChip(
-                icon: Icons.ios_share_outlined,
-                label: 'Share card',
-                share: true),
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
+            const _ActionChip(icon: Icons.schedule, label: 'Availability'),
+            const _ActionChip(
+                icon: Icons.account_balance_wallet_outlined, label: 'Withdraw'),
+
+            // Share as a prominent filled button
+            SizedBox(
+              height: 40,
+              child: Tooltip(
+                message: 'Copy share link & preview',
+                child: FilledButton.icon(
+                  onPressed: () => _shareCard(context),
+                  icon: const Icon(Icons.ios_share_outlined),
+                  label: const Text('Share card'),
+                  style: FilledButton.styleFrom(
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -2732,7 +2779,8 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           ),
         ),
       ),
-    );
+      );
+
   }
 }
 
@@ -3090,11 +3138,53 @@ class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool share;
-  const _ActionChip({super.key, required this.icon, required this.label, this.share = false});
+  final VoidCallback? onPressed;
+
+  const _ActionChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.share = false,
+    this.onPressed,
+  });
+
   @override
-  Widget build(BuildContext context) =>
-      ActionChip(label: Text(label), avatar: Icon(icon));
+  Widget build(BuildContext context) {
+    final chip = ActionChip(
+      avatar: Icon(icon),
+      label: Text(label),
+      onPressed: onPressed, // can be null (disabled) for other actions
+    );
+
+    return share
+        ? DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(colors: [Color(0xFF22C55E), Color(0xFF3B82F6)]),
+        borderRadius: BorderRadius.all(Radius.circular(999)),
+      ),
+      child: Theme(
+        // White text/icon on gradient
+        data: Theme.of(context).copyWith(
+          chipTheme: Theme.of(context).chipTheme.copyWith(
+            labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            iconTheme: const IconThemeData(color: Colors.white),
+            backgroundColor: Colors.transparent,
+          ),
+        ),
+        child: ActionChip(
+          avatar: const Icon(Icons.ios_share_outlined, color: Colors.white),
+          label: const Text('Share card'),
+          onPressed: onPressed,
+          elevation: 0,
+          pressElevation: 0,
+          shape: const StadiumBorder(side: BorderSide(color: Colors.transparent)),
+        ),
+      ),
+    )
+        : chip;
+  }
 }
+
 
 class _LargeAddProjectButton extends StatelessWidget {
   final VoidCallback onTap;

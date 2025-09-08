@@ -17,6 +17,7 @@ import 'screens/forgot_password.dart';
 import 'widgets/background_video_single.dart';
 import 'services/preferences_service.dart';
 import 'services/session_service.dart';
+import 'screens/share_card_public.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
@@ -252,6 +253,7 @@ class _MyAppState extends State<MyApp> {
         FreelancerProfileScreen.route: (_) => const FreelancerProfileScreen(),
         ClientProfileScreen.route: (_) => const ClientProfileScreen(),
         ForgotPasswordPage.routeName: (_) => const ForgotPasswordPage(),
+        ShareCardPublicPage.routeName: (_) => const ShareCardPublicPage(),
       },
       home: _loaded ? LandingPage(onToggleTheme: _toggleTheme, darkMode: _darkMode) : const SizedBox.shrink(),
     );

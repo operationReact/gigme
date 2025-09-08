@@ -5,6 +5,9 @@ import '../services/session_service.dart';
 import '../main.dart';
 import '../screens/freelancer_home.dart';
 import '../widgets/profile_preview_card.dart';
+import 'package:flutter/services.dart';
+import '../screens/share_card_public.dart';
+
 
 class FreelancerProfileScreen extends StatefulWidget {
   const FreelancerProfileScreen({super.key});

@@ -21,6 +21,13 @@ public class ContactLinkController {
         return ResponseEntity.ok(links);
     }
 
+       // Public, read-only endpoint for the shareable card
+    @GetMapping("/public")
+    public ResponseEntity<List<ContactLink>> getContactLinksPublic(@RequestParam("userId") Long userId) {
+        List<ContactLink> links = contactLinkService.getContactLinksByUserId(userId);
+        return ResponseEntity.ok(links);
+    }
+
     @PostMapping
     public ResponseEntity<ContactLink> createContactLink(@RequestBody ContactLink contactLink) {
         ContactLink createdLink = contactLinkService.createContactLink(contactLink);

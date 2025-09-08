@@ -2,6 +2,7 @@ package com.gigmework.backend.config;
 
 import com.gigmework.backend.domain.*;
 import com.gigmework.backend.repo.*;
+import com.gigmework.backend.models.ContactLink;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,8 @@ public class DataInitializer {
                            FreelancerProfileRepository freelancers,
                            ClientProfileRepository clients,
                            JobRepository jobs,
-                           PortfolioItemRepository portfolioItems) {
+                           PortfolioItemRepository portfolioItems,
+                           ContactLinkRepository contactLinks) {
         return args -> {
             if (users.count() == 0) {
                 UserAccount client1 = users.save(new UserAccount("client@example.com", "password", UserRole.CLIENT));
@@ -83,6 +85,32 @@ public class DataInitializer {
                 portfolioItems.save(new PortfolioItem(free1, "Chat Module", "Realtime messaging UI", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/Bihar+tree+scam.mov", MediaType.VIDEO, 1048576L, null, null, 60, "https://img.youtube.com/vi/YE7VzlLtp-4/0.jpg"));
                 portfolioItems.save(new PortfolioItem(free1, "Brand Kit", "Logo & typography system", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/3_1757003279405_thestayabro.jpg", MediaType.IMAGE, 203000L, 400, 300, null, null));
                 portfolioItems.save(new PortfolioItem(free1, "Marketing Site", "Landing page redesign", "https://gigmes3dev.s3.us-east-1.amazonaws.com/images/99666.pdf", MediaType.DOCUMENT, 153600L, null, null, null, null));
+
+                // Seed contact links for the first freelancer (userId = free1.getId())
+                ContactLink l1 = new ContactLink();
+                l1.setUserId(free1.getId());
+                l1.setLabel("Youtube");
+                l1.setUrl("https://www.youtube.com/@thesatyabro");
+                l1.setKind("website");
+                l1.setSortOrder(1);
+
+                ContactLink l2 = new ContactLink();
+                l2.setUserId(free1.getId());
+                l2.setLabel("Instagram");
+                l2.setUrl("https://www.instagram.com/thesatyabro/");
+                l2.setKind("linkedin");
+                l2.setSortOrder(2);
+
+                ContactLink l3 = new ContactLink();
+                l3.setUserId(free1.getId());
+                l3.setLabel("GigMeWork");
+                l3.setUrl("https://github.com/satya");
+                l3.setKind("github");
+                l3.setSortOrder(3);
+
+                contactLinks.save(l1);
+                contactLinks.save(l2);
+                contactLinks.save(l3);
             }
         };
     }
