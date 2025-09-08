@@ -442,6 +442,8 @@ class _CardContent extends StatelessWidget {
     final hasEmail = links.any((l) => l.url.startsWith('mailto:'));
     final hasTel = links.any((l) => l.url.startsWith('tel:'));
 
+    const headerHeight = 66.0;
+
     final cardBg = dark ? const Color(0xCC0B1220) : Colors.white.withOpacity(.85);
     final headerGrad = dark
         ? const [Color(0xFF0EA5E9), Color(0xFF6366F1)]
@@ -460,29 +462,25 @@ class _CardContent extends StatelessWidget {
           elevation: 0,
           color: cardBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          // ⬇️ Stack ensures the avatar draws above the seam
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Header band
-              Container(
-                height: 66,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: headerGrad,
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 16,
-                      bottom: -28,
-                      child: _HeaderAvatar(url: imageUrl),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header band (icons only)
+                  Container(
+                    height: headerHeight,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: headerGrad,
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
                     ),
-                    Positioned(
-                      right: 6,
-                      top: 6,
+                    child: Align(
+                      alignment: Alignment.topRight,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -507,158 +505,169 @@ class _CardContent extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              // Name/Title
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 62),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  // Space to accommodate the overlapping avatar
+                  const SizedBox(height: 28),
+
+                  // Name/Title
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 72), // leave room for avatar circle
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: textMain,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textSub,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bio
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+                      child: Text(
+                        bio,
+                        style: TextStyle(fontSize: 14, color: bioColor),
+                      ),
+                    ),
+                  ),
+
+                  // Quick contact row
+                  if (hasEmail || hasTel)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
                         children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: textMain,
+                          if (hasEmail)
+                            _ChipButton(
+                              icon: Icons.mail_outline,
+                              label: 'Email',
+                              dark: dark,
+                              onTap: () {
+                                final link =
+                                links.firstWhere((l) => l.url.startsWith('mailto:'));
+                                onOpen(link.url);
+                              },
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textSub,
-                              fontWeight: FontWeight.w600,
+                          if (hasTel) const SizedBox(width: 8),
+                          if (hasTel)
+                            _ChipButton(
+                              icon: Icons.call_outlined,
+                              label: 'Call',
+                              dark: dark,
+                              onTap: () {
+                                final link =
+                                links.firstWhere((l) => l.url.startsWith('tel:'));
+                                onOpen(link.url);
+                              },
                             ),
-                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
 
-              // Bio
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
-                  child: Text(
-                    bio,
-                    style: TextStyle(fontSize: 14, color: bioColor),
-                  ),
-                ),
-              ),
+                  const SizedBox(height: 6),
 
-              // Quick contact row
-              if (hasEmail || hasTel)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      if (hasEmail)
-                        _ChipButton(
-                          icon: Icons.mail_outline,
-                          label: 'Email',
-                          dark: dark,
-                          onTap: () {
-                            final link =
-                            links.firstWhere((l) => l.url.startsWith('mailto:'));
-                            onOpen(link.url);
-                          },
+                  // Links
+                  if (loadingLinks)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        children: List.generate(
+                          3,
+                              (i) => Padding(
+                            padding: EdgeInsets.only(bottom: i == 2 ? 0 : 10),
+                            child: _skeletonBar(
+                              height: 46,
+                              dark: dark,
+                            ),
+                          ),
                         ),
-                      if (hasTel) const SizedBox(width: 8),
-                      if (hasTel)
-                        _ChipButton(
-                          icon: Icons.call_outlined,
-                          label: 'Call',
-                          dark: dark,
-                          onTap: () {
-                            final link =
-                            links.firstWhere((l) => l.url.startsWith('tel:'));
-                            onOpen(link.url);
-                          },
-                        ),
-                    ],
-                  ),
-                ),
+                      ),
+                    )
+                  else if (links.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      child: Text('No links yet',
+                          style:
+                          TextStyle(color: textSub, fontWeight: FontWeight.w500)),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                      child: grid
+                          ? _GridLinks(
+                        links: links,
+                        counts: counts,
+                        dark: dark,
+                        brandGrad: brandGrad,
+                        iconFor: iconFor,
+                        onOpen: onOpen,
+                      )
+                          : Column(
+                        children: links
+                            .map((l) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _LinkButton(
+                            label: l.label,
+                            url: l.url,
+                            icon: iconFor(l.url, l.label),
+                            gradient: brandGrad(l.url),
+                            onTap: () => onOpen(l.url),
+                            count: counts[l.url] ?? 0,
+                            dark: dark,
+                          ),
+                        ))
+                            .toList(),
+                      ),
+                    ),
 
-              const SizedBox(height: 6),
-
-              // Links
-              if (loadingLinks)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Column(
-                    children: List.generate(
-                      3,
-                          (i) => Padding(
-                        padding: EdgeInsets.only(bottom: i == 2 ? 0 : 10),
-                        child: _skeletonBar(
-                          height: 46,
-                          dark: dark,
-                        ),
+                  const SizedBox(height: 6),
+                  Opacity(
+                    opacity: .7,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 14.0),
+                      child: Text(
+                        'GigMeWork • People Need People',
+                        style: TextStyle(fontSize: 12, color: textSub),
                       ),
                     ),
                   ),
-                )
-              else if (links.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 28),
-                  child: Text('No links yet',
-                      style: TextStyle(color: textSub, fontWeight: FontWeight.w500)),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                  child: grid
-                      ? _GridLinks(
-                    links: links,
-                    counts: counts,
-                    dark: dark,
-                    brandGrad: brandGrad,
-                    iconFor: iconFor,
-                    onOpen: onOpen,
-                  )
-                      : Column(
-                    children: links
-                        .map((l) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _LinkButton(
-                        label: l.label,
-                        url: l.url,
-                        icon: iconFor(l.url, l.label),
-                        gradient: brandGrad(l.url),
-                        onTap: () => onOpen(l.url),
-                        count: counts[l.url] ?? 0,
-                        dark: dark,
-                      ),
-                    ))
-                        .toList(),
-                  ),
-                ),
+                ],
+              ),
 
-              const SizedBox(height: 6),
-              Opacity(
-                opacity: .7,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 14.0),
-                  child: Text(
-                    'GigMeWork • People Need People',
-                    style: TextStyle(fontSize: 12, color: textSub),
-                  ),
-                ),
+              // ⬇️ Avatar floats above header/body seam
+              Positioned(
+                left: 16,
+                top: headerHeight - 32, // 64px avatar overlaps by ~half
+                child: _HeaderAvatar(url: imageUrl),
               ),
             ],
           ),
@@ -1025,8 +1034,11 @@ class _GridLinks extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     int cross = 2;
-    if (width > 780) cross = 4;
-    else if (width > 560) cross = 3;
+    if (width > 780) {
+      cross = 4;
+    } else if (width > 560) {
+      cross = 3;
+    }
 
     return GridView.builder(
       shrinkWrap: true,
