@@ -209,40 +209,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
 
   void _onApplyPressed() {}
 
-  // NEW: Only one big section rendered based on the selected tab
-  Widget _selectedSection(int? uid) {
-    switch (_currentTab) {
-      case _PrimaryTab.feed:
-        if (uid == null) {
-          return const GlassCard(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Sign in to see your creator feed'),
-            ),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            HomeFeedPreview(viewerId: uid),
-          ],
-        );
-
-      case _PrimaryTab.portfolio:
-        return const _PortfolioSection();
-
-      case _PrimaryTab.jobs:
-        return const Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ActiveContracts(),
-            SizedBox(height: 16),
-            _Recommendations(),
-          ],
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -276,6 +242,13 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 dense: true,
                 showLabel: true,
               ),
+            ),
+          // Share icon for small screens
+          if (isMobile)
+            IconButton(
+              tooltip: 'Copy GigMe Share card',
+              icon: const Icon(Icons.ios_share_outlined),
+              onPressed: () => _copyShareCard(context),
             ),
           Stack(
             children: [
@@ -389,8 +362,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                               const _StatsAndProgress(),
                             ],
 
-                            const SizedBox(height: 12),
-                            const _QuickActions(),
+                            // (Quick actions removed)
                             const SizedBox(height: 16),
 
                             _PrimaryNavBar(
@@ -417,6 +389,69 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
       ),
     );
   }
+
+  // NEW: Only one big section rendered based on the selected tab
+  Widget _selectedSection(int? uid) {
+    switch (_currentTab) {
+      case _PrimaryTab.feed:
+        if (uid == null) {
+          return const GlassCard(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Sign in to see your creator feed'),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HomeFeedPreview(viewerId: uid),
+          ],
+        );
+
+      case _PrimaryTab.portfolio:
+        return const _PortfolioSection();
+
+      case _PrimaryTab.jobs:
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ActiveContracts(),
+            SizedBox(height: 16),
+            _Recommendations(),
+          ],
+        );
+    }
+  }
+}
+
+// Helper used in header and app bar
+Future<void> _copyShareCard(BuildContext context) async {
+  final uid = HomeData.of(context).data?.userId ?? SessionService.instance.user?.id;
+  if (uid == null) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Sign in to share your card.')));
+    return;
+  }
+
+  final url = ShareCardPublicPage.buildUrlForUser(uid);
+
+  await Clipboard.setData(ClipboardData(text: url));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text('Share link copied to clipboard'),
+      action: SnackBarAction(
+        label: 'Preview',
+        onPressed: () {
+          Navigator.of(context).pushNamed(
+            ShareCardPublicPage.routeName,
+            arguments: {'u': uid},
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class HomeData extends InheritedWidget {
@@ -611,23 +646,9 @@ class _HeaderHero extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'Your Freelance Workspace',
-                style:
-                Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _kHeading,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Title removed; keep spacer to push actions to the right
+        const Expanded(child: SizedBox()),
+
         if (isWide)
           Row(
             children: [
@@ -635,6 +656,16 @@ class _HeaderHero extends StatelessWidget {
                 icon: Icons.edit_outlined,
                 label: 'Edit Profile',
                 onPressed: () => Navigator.of(context).pushNamed('/profile/user'),
+              ),
+              const SizedBox(width: 12),
+              // ✅ Copy GigMe Share card beside Edit Profile
+              FilledButton.icon(
+                onPressed: () => _copyShareCard(context),
+                icon: const Icon(Icons.ios_share_outlined),
+                label: const Text('Copy GigMe Share card'),
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                ),
               ),
               const SizedBox(width: 12),
               const _OutlineSoftButton(
@@ -1989,78 +2020,6 @@ class _RecentActivitySection extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  Future<void> _shareCard(BuildContext context) async {
-    final uid = HomeData
-        .of(context)
-        .data
-        ?.userId ?? SessionService.instance.user?.id;
-    if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in to share your card.')));
-      return;
-    }
-
-    final url = ShareCardPublicPage.buildUrlForUser(uid);
-
-    // Copy to clipboard + snackbar with quick preview
-    await Clipboard.setData(ClipboardData(text: url));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Share link copied to clipboard'),
-        action: SnackBarAction(
-          label: 'Preview',
-          onPressed: () {
-            // Open via Navigator so creators can instantly preview
-            Navigator.of(context).pushNamed(
-              ShareCardPublicPage.routeName,
-              arguments: {'u': uid},
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return HoverScale(
-      child: GlassCard(
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const _ActionChip(icon: Icons.send_outlined, label: 'New proposal'),
-            const _ActionChip(icon: Icons.schedule, label: 'Availability'),
-            const _ActionChip(
-                icon: Icons.account_balance_wallet_outlined, label: 'Withdraw'),
-
-            // Share as a prominent filled button
-            SizedBox(
-              height: 40,
-              child: Tooltip(
-                message: 'Copy share link & preview',
-                child: FilledButton.icon(
-                  onPressed: () => _shareCard(context),
-                  icon: const Icon(Icons.ios_share_outlined),
-                  label: const Text('Copy GigMe Share card'),
-                  style: FilledButton.styleFrom(
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ------------------ RICH, SEGMENTED PORTFOLIO SECTION ------------------
 class _PortfolioSection extends StatefulWidget {
   const _PortfolioSection();
@@ -2779,8 +2738,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           ),
         ),
       ),
-      );
-
+    );
   }
 }
 
@@ -3126,65 +3084,6 @@ class _SkeletonRating extends StatelessWidget {
   Widget build(BuildContext context) =>
       Row(children: List.generate(5, (i) => Icon(Icons.star, color: Colors.grey.shade300)));
 }
-
-class _SkeletonChip extends StatelessWidget {
-  const _SkeletonChip({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      Chip(label: Container(width: 40, height: 12, color: Colors.grey.shade300));
-}
-
-class _ActionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool share;
-  final VoidCallback? onPressed;
-
-  const _ActionChip({
-    super.key,
-    required this.icon,
-    required this.label,
-    this.share = false,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final chip = ActionChip(
-      avatar: Icon(icon),
-      label: Text(label),
-      onPressed: onPressed, // can be null (disabled) for other actions
-    );
-
-    return share
-        ? DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [Color(0xFF22C55E), Color(0xFF3B82F6)]),
-        borderRadius: BorderRadius.all(Radius.circular(999)),
-      ),
-      child: Theme(
-        // White text/icon on gradient
-        data: Theme.of(context).copyWith(
-          chipTheme: Theme.of(context).chipTheme.copyWith(
-            labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            iconTheme: const IconThemeData(color: Colors.white),
-            backgroundColor: Colors.transparent,
-          ),
-        ),
-        child: ActionChip(
-          avatar: const Icon(Icons.ios_share_outlined, color: Colors.white),
-          label: const Text('Share card'),
-          onPressed: onPressed,
-          elevation: 0,
-          pressElevation: 0,
-          shape: const StadiumBorder(side: BorderSide(color: Colors.transparent)),
-        ),
-      ),
-    )
-        : chip;
-  }
-}
-
 
 class _LargeAddProjectButton extends StatelessWidget {
   final VoidCallback onTap;
