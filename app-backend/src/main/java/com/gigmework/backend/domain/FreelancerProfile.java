@@ -55,6 +55,12 @@ public class FreelancerProfile {
 
     private Boolean available;
 
+    @Column(columnDefinition = "TEXT")
+    private String extraJson; // generic JSON blob for extensible fields
+
+    @Column(columnDefinition = "TEXT")
+    private String socialLinksJson; // optional dedicated JSON for links
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -109,6 +115,11 @@ public class FreelancerProfile {
     public String getCurrency() { return currency; }
     public Boolean getAvailable() { return available; }
     public Instant getCreatedAt() { return createdAt; }
+    public String getExtraJson() { return extraJson; }
+    public String getSocialLinksJson() { return socialLinksJson; }
+
+    public void setExtraJson(String extraJson) { this.extraJson = extraJson; }
+    public void setSocialLinksJson(String socialLinksJson) { this.socialLinksJson = socialLinksJson; }
 
     public void update(String displayName,
                        String professionalTitle,

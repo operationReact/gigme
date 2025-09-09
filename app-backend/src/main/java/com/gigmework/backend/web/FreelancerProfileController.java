@@ -39,7 +39,9 @@ public class FreelancerProfileController {
                 body.github(),
                 body.hourlyRateCents(),
                 body.currency(),
-                body.available()
+                body.available(),
+                body.extraJson(),
+                body.socialLinksJson()
             );
             return ResponseEntity.ok(FreelancerProfileDto.from(fp));
         } catch (IllegalArgumentException e) {
@@ -61,7 +63,9 @@ public class FreelancerProfileController {
             String github,
             Integer hourlyRateCents,
             String currency,
-            Boolean available
+            Boolean available,
+            String extraJson,
+            String socialLinksJson
     ) {}
 
     public record FreelancerProfileDto(
@@ -80,7 +84,9 @@ public class FreelancerProfileController {
             String github,
             Integer hourlyRateCents,
             String currency,
-            Boolean available
+            Boolean available,
+            String extraJson,
+            String socialLinksJson
     ) {
         static FreelancerProfileDto from(FreelancerProfile fp) {
             return new FreelancerProfileDto(
@@ -99,7 +105,9 @@ public class FreelancerProfileController {
                 fp.getGithub(),
                 fp.getHourlyRateCents(),
                 fp.getCurrency(),
-                fp.getAvailable()
+                fp.getAvailable(),
+                fp.getExtraJson(),
+                fp.getSocialLinksJson()
             );
         }
     }

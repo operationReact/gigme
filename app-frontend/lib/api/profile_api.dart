@@ -19,6 +19,8 @@ class FreelancerProfileDto {
   final int? hourlyRateCents;
   final String? currency;
   final bool? available;
+  final String? extraJson;
+  final String? socialLinksJson;
   FreelancerProfileDto({
     required this.id,
     required this.userId,
@@ -36,6 +38,8 @@ class FreelancerProfileDto {
     this.hourlyRateCents,
     this.currency,
     this.available,
+    this.extraJson,
+    this.socialLinksJson,
   });
   factory FreelancerProfileDto.fromJson(Map<String,dynamic> j) => FreelancerProfileDto(
     id: j['id'] as int,
@@ -54,6 +58,8 @@ class FreelancerProfileDto {
     hourlyRateCents: j['hourlyRateCents'] as int?,
     currency: j['currency'] as String?,
     available: j['available'] as bool?,
+    extraJson: j['extraJson'] as String?,
+    socialLinksJson: j['socialLinksJson'] as String?,
   );
 }
 
@@ -110,6 +116,8 @@ class ProfileApi {
     int? hourlyRateCents,
     String? currency,
     bool? available,
+    String? extraJson,
+    String? socialLinksJson,
   }) async {
     final body = {
       'displayName': displayName,
@@ -126,6 +134,8 @@ class ProfileApi {
       'hourlyRateCents': hourlyRateCents,
       'currency': currency,
       'available': available,
+      'extraJson': extraJson,
+      'socialLinksJson': socialLinksJson,
     };
     final res = await _client.put('/api/freelancers/$userId/profile', body: body);
     if (res.statusCode == 200) {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api/profile_api.dart';
@@ -13,6 +14,17 @@ const _kTeal = Color(0xFF00C2A8);
 const _kIndigo = Color(0xFF3B82F6);
 const _kViolet = Color(0xFF7C3AED);
 const _kHeading = Color(0xFF111827);
+
+/// Tiny model to hold dynamic links
+class ContactLink {
+  String label;
+  String url;
+  ContactLink({required this.label, required this.url});
+
+  Map<String, dynamic> toJson() => {'label': label, 'url': url};
+  static ContactLink fromJson(Map<String, dynamic> j) =>
+      ContactLink(label: (j['label'] ?? '').toString(), url: (j['url'] ?? '').toString());
+}
 
 class ProfileUserPage extends StatefulWidget {
   /// EDIT profile route
@@ -34,9 +46,9 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
   final _locationCtrl = TextEditingController(text: 'Remote • Worldwide');
   final _emailCtrl = TextEditingController(text: 'email@example.com');
   final _phoneCtrl = TextEditingController();
-  final _websiteCtrl = TextEditingController(text: 'your-portfolio.com');
-  final _linkedinCtrl = TextEditingController();
-  final _githubCtrl = TextEditingController();
+  final _websiteCtrl = TextEditingController(text: 'your-portfolio.com'); // kept for backward-compat
+  final _linkedinCtrl = TextEditingController(); // kept for backward-compat
+  final _githubCtrl = TextEditingController(); // kept for backward-compat
   final _bioCtrl = TextEditingController(
     text:
     'Short bio goes here. Highlight your experience, niche and recent wins. Keep it concise and outcome-focused.',
@@ -46,13 +58,17 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
   String _currency = 'USD';
   bool _available = true;
 
-  // NEW: avatar url (public) and upload flag
+  // Avatar url and upload flag
   String? _imageUrl;
   bool _uploadingAvatar = false;
 
   // Skills editor
   final _skillCtrl = TextEditingController();
   final List<String> _skills = ['Flutter', 'Dart', 'Firebase', 'REST APIs'];
+
+  // ── NEW: Dynamic link editor state
+  final List<ContactLink> _links = [];
+  final _urlReg = RegExp(r'^(https?:\/\/)[^\s/$.?#].[^\s]*$', caseSensitive: false);
 
   @override
   void initState() {
@@ -101,7 +117,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
           _rateCtrl.text = s;
         }
         if ((dto.currency ?? '').isNotEmpty) {
-          const allowed = ['USD','EUR','GBP','INR'];
+          const allowed = ['USD', 'EUR', 'GBP', 'INR'];
           _currency = allowed.contains(dto.currency) ? dto.currency! : _currency;
         }
         if (dto.available != null) _available = dto.available!;
@@ -111,9 +127,53 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
             ..clear()
             ..addAll(csv.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
         }
-        // NEW: prefill avatar
         final img = (dto.imageUrl ?? '').trim();
         if (img.isNotEmpty) _imageUrl = img;
+
+        // ── Prefill dynamic links from dto.extraJson or dto.socialLinksJson; else fallback to old fields
+        _links.clear();
+        bool filledFromJson = false;
+
+        // Option A: dto.extraJson (generic JSON blob)
+        final rawExtraJson = (dto.extraJson ?? '').trim();
+        if (rawExtraJson.isNotEmpty) {
+          try {
+            final map = jsonDecode(rawExtraJson) as Map<String, dynamic>;
+            final arr = (map['socialLinks'] as List?) ?? [];
+            for (final e in arr) {
+              _links.add(ContactLink.fromJson(Map<String, dynamic>.from(e as Map)));
+            }
+            filledFromJson = _links.isNotEmpty;
+          } catch (_) {}
+        }
+
+        // Option B: dto.socialLinksJson (if you already have a dedicated field)
+        if (!filledFromJson) {
+          final rawSocial = (dto.socialLinksJson ?? '').trim();
+          if (rawSocial.isNotEmpty) {
+            try {
+              final arr = jsonDecode(rawSocial) as List;
+              for (final e in arr) {
+                _links.add(ContactLink.fromJson(Map<String, dynamic>.from(e as Map)));
+              }
+              filledFromJson = _links.isNotEmpty;
+            } catch (_) {}
+          }
+        }
+
+        // Fallback: build from legacy discrete fields
+        if (!filledFromJson) {
+          if ((dto.website ?? '').trim().isNotEmpty) {
+            _links.add(ContactLink(label: 'Website', url: dto.website!.trim()));
+          }
+          if ((dto.linkedin ?? '').trim().isNotEmpty) {
+            _links.add(ContactLink(label: 'LinkedIn', url: dto.linkedin!.trim()));
+          }
+          if ((dto.github ?? '').trim().isNotEmpty) {
+            _links.add(ContactLink(label: 'GitHub', url: dto.github!.trim()));
+          }
+        }
+
         // Reset dirty after prefill
         _dirty = false;
       }
@@ -180,22 +240,34 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
       final cents = rate == null ? null : (rate * 100).round();
       final skillsCsv = _skills.isEmpty ? null : _skills.join(', ');
 
+      // Build social links JSON and embed inside a generic extraJson map
+      final socialJsonArr = _links.map((e) => e.toJson()).toList();
+      final extraJson = jsonEncode({'socialLinks': socialJsonArr});
+
       await ProfileApi().upsertFreelancer(
         user.id,
         displayName: _nameCtrl.text.trim(),
         professionalTitle: _headlineCtrl.text.trim().isEmpty ? null : _headlineCtrl.text.trim(),
         bio: _bioCtrl.text.trim().isEmpty ? null : _bioCtrl.text.trim(),
         skillsCsv: skillsCsv,
-        imageUrl: _imageUrl, // <— persist avatar url
+        imageUrl: _imageUrl, // persist avatar url
         location: _locationCtrl.text.trim().isEmpty ? null : _locationCtrl.text.trim(),
         contactEmail: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+
+        // legacy discrete fields (keep for backward compatibility)
         website: _websiteCtrl.text.trim().isEmpty ? null : _websiteCtrl.text.trim(),
         linkedin: _linkedinCtrl.text.trim().isEmpty ? null : _linkedinCtrl.text.trim(),
         github: _githubCtrl.text.trim().isEmpty ? null : _githubCtrl.text.trim(),
+
         hourlyRateCents: cents,
         currency: _currency,
         available: _available,
+
+        // ── NEW: generic JSON blob to store dynamic links
+        extraJson: extraJson,
+        // If you already have a dedicated field, you could also pass:
+        // socialLinksJson: jsonEncode(socialJsonArr),
       );
 
       if (!mounted) return;
@@ -211,8 +283,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
     }
   }
 
-  InputDecoration _decoration(BuildContext context, String label,
-      {String? hint, Widget? prefix}) {
+  InputDecoration _decoration(BuildContext context, String label, {String? hint, Widget? prefix}) {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
@@ -221,16 +292,14 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
       filled: true,
       fillColor: cs.surfaceVariant.withOpacity(0.24),
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: cs.outlineVariant)),
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cs.outlineVariant)),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: cs.outlineVariant.withOpacity(0.7))),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: cs.secondary, width: 1.6)),
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 
@@ -241,16 +310,13 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
     return WillPopScope(
       onWillPop: _confirmDiscard,
       child: Scaffold(
-        // We’re using a SliverAppBar with its own gradient now, so we
-        // do NOT extend the body behind the app bar anymore.
         bottomNavigationBar: SafeArea(
           top: false,
           child: Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
-              border:
-              Border(top: BorderSide(color: cs.outlineVariant.withOpacity(0.6))),
+              border: Border(top: BorderSide(color: cs.outlineVariant.withOpacity(0.6))),
             ),
             child: Row(
               children: [
@@ -280,8 +346,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: cs.secondary,
                       foregroundColor: cs.onSecondary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       textStyle: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -292,10 +357,10 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
         ),
         body: CustomScrollView(
           slivers: [
-            // ── Slim, pinned gradient header (no collision) ─────────────────
+            // ── Slim, pinned gradient header ────────────────────────────────
             SliverAppBar(
               pinned: true,
-              expandedHeight: 120, // much smaller
+              expandedHeight: 120,
               elevation: 0,
               backgroundColor: Colors.transparent,
               automaticallyImplyLeading: false,
@@ -306,8 +371,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                   if (ok && mounted) Navigator.of(context).pop();
                 },
               ),
-              title:
-              const _GmwLogo(markSize: 22, fontSize: 18, onDark: true),
+              title: const _GmwLogo(markSize: 22, fontSize: 18, onDark: true),
               flexibleSpace: LayoutBuilder(
                 builder: (_, __) {
                   final cs = Theme.of(context).colorScheme;
@@ -322,8 +386,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                     child: Align(
                       alignment: Alignment.bottomCenter,
                       child: Padding(
-                        padding:
-                        const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+                        padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
                         child: Text(
                           'Edit Profile',
                           style: Theme.of(context)
@@ -349,8 +412,8 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          if (_loading)
-                            const LinearProgressIndicator(minHeight: 2),
+                          if (_loading) const LinearProgressIndicator(minHeight: 2),
+
                           _HeaderCard(
                             nameCtrl: _nameCtrl,
                             headlineCtrl: _headlineCtrl,
@@ -371,22 +434,17 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                   decoration: _decoration(context, 'Full name',
                                       prefix: const Icon(Icons.person_rounded)),
                                   validator: (v) =>
-                                  (v == null || v.trim().isEmpty)
-                                      ? 'Name is required'
-                                      : null,
+                                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                                 ),
                                 TextFormField(
                                   controller: _headlineCtrl,
-                                  decoration: _decoration(
-                                      context, 'Headline (what you do)',
+                                  decoration: _decoration(context, 'Headline (what you do)',
                                       prefix: const Icon(Icons.badge_outlined)),
                                 ),
                                 TextFormField(
                                   controller: _locationCtrl,
-                                  decoration: _decoration(
-                                      context, 'Location',
-                                      prefix:
-                                      const Icon(Icons.location_on_outlined)),
+                                  decoration: _decoration(context, 'Location',
+                                      prefix: const Icon(Icons.location_on_outlined)),
                                 ),
                               ],
                             ),
@@ -396,44 +454,36 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                           // CONTACT
                           _EditSection(
                             title: 'Contact',
-                            child: _ResponsiveColumns(
+                            child: Column(
                               children: [
-                                TextFormField(
-                                  controller: _emailCtrl,
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: _decoration(
-                                      context, 'Email',
-                                      prefix: const Icon(Icons.email_outlined)),
-                                  validator: (v) {
-                                    final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                        .hasMatch(v ?? '');
-                                    return ok ? null : 'Enter a valid email';
-                                  },
+                                _ResponsiveColumns(
+                                  children: [
+                                    TextFormField(
+                                      controller: _emailCtrl,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: _decoration(context, 'Email',
+                                          prefix: const Icon(Icons.email_outlined)),
+                                      validator: (v) {
+                                        final ok =
+                                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v ?? '');
+                                        return ok ? null : 'Enter a valid email';
+                                      },
+                                    ),
+                                    TextFormField(
+                                      controller: _phoneCtrl,
+                                      keyboardType: TextInputType.phone,
+                                      decoration: _decoration(context, 'Phone (optional)',
+                                          prefix: const Icon(Icons.phone_outlined)),
+                                    ),
+                                  ],
                                 ),
-                                TextFormField(
-                                  controller: _phoneCtrl,
-                                  keyboardType: TextInputType.phone,
-                                  decoration: _decoration(
-                                      context, 'Phone (optional)',
-                                      prefix: const Icon(Icons.phone_outlined)),
-                                ),
-                                TextFormField(
-                                  controller: _websiteCtrl,
-                                  decoration: _decoration(
-                                      context, 'Website',
-                                      prefix: const Icon(Icons.link_outlined)),
-                                ),
-                                TextFormField(
-                                  controller: _linkedinCtrl,
-                                  decoration: _decoration(
-                                      context, 'LinkedIn (optional)',
-                                      prefix: const Icon(Icons.business_outlined)),
-                                ),
-                                TextFormField(
-                                  controller: _githubCtrl,
-                                  decoration: _decoration(
-                                      context, 'GitHub (optional)',
-                                      prefix: const Icon(Icons.code_outlined)),
+                                const SizedBox(height: 12),
+                                _ContactLinksEditor(
+                                  links: _links,
+                                  onChanged: () => setState(() => _dirty = true),
+                                  urlValidator: (s) => _urlReg.hasMatch(s),
+                                  decorationBuilder:
+                                      (label, {prefix}) => _decoration(context, label, prefix: prefix),
                                 ),
                               ],
                             ),
@@ -480,8 +530,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                     Expanded(
                                       child: TextField(
                                         controller: _skillCtrl,
-                                        decoration:
-                                        _decoration(context, 'Add a skill'),
+                                        decoration: _decoration(context, 'Add a skill'),
                                         onSubmitted: (_) => _addSkill(),
                                       ),
                                     ),
@@ -508,18 +557,15 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                     Expanded(
                                       child: TextFormField(
                                         controller: _rateCtrl,
-                                        keyboardType:
-                                        const TextInputType.numberWithOptions(
+                                        keyboardType: const TextInputType.numberWithOptions(
                                             decimal: true),
                                         inputFormatters: [
-                                          FilteringTextInputFormatter.allow(
-                                              RegExp(r'^\d*\.?\d{0,2}'))
+                                          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))
                                         ],
-                                        decoration:
-                                        _decoration(context, 'Hourly rate'),
+                                        decoration: _decoration(context, 'Hourly rate'),
                                         validator: (v) {
                                           final t = (v ?? '').trim();
-                                          if (t.isEmpty) return null; // allow empty (optional)
+                                          if (t.isEmpty) return null; // optional
                                           final n = double.tryParse(t);
                                           return (n == null) ? 'Enter a number' : null;
                                         },
@@ -530,17 +576,12 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                       width: 110,
                                       child: DropdownButtonFormField<String>(
                                         value: _currency,
-                                        decoration:
-                                        _decoration(context, 'Currency'),
+                                        decoration: _decoration(context, 'Currency'),
                                         items: const [
-                                          DropdownMenuItem(
-                                              value: 'USD', child: Text('USD')),
-                                          DropdownMenuItem(
-                                              value: 'EUR', child: Text('EUR')),
-                                          DropdownMenuItem(
-                                              value: 'GBP', child: Text('GBP')),
-                                          DropdownMenuItem(
-                                              value: 'INR', child: Text('INR')),
+                                          DropdownMenuItem(value: 'USD', child: Text('USD')),
+                                          DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+                                          DropdownMenuItem(value: 'GBP', child: Text('GBP')),
+                                          DropdownMenuItem(value: 'INR', child: Text('INR')),
                                         ],
                                         onChanged: (v) => setState(() {
                                           _currency = v ?? _currency;
@@ -565,9 +606,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                         _available
                                             ? 'Open to new projects'
                                             : 'Not currently available',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
+                                        style: Theme.of(context).textTheme.bodyMedium,
                                       ),
                                     ),
                                   ],
@@ -575,7 +614,6 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 36),
                         ],
                       ),
@@ -604,7 +642,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
     });
   }
 
-  // ── Avatar actions (UI ready; wire to your picker/uploader) ────────────────
+  // ── Avatar actions (UI ready; wire to your picker/uploader)
   void _changePhoto() {
     showModalBottomSheet(
       context: context,
@@ -660,7 +698,6 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
       if (bytes != null) {
         data = bytes;
       } else if ((f.path ?? '').isNotEmpty) {
-        // avoid importing dart:io on web; only used when path exists
         // ignore: avoid_web_libraries_in_flutter
         data = await File(f.path!).readAsBytes();
       } else {
@@ -697,7 +734,6 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
   }
 
   void _removePhoto() {
-    // Clear avatar locally; persist on next Save
     setState(() {
       _imageUrl = null;
       _dirty = true;
@@ -716,8 +752,6 @@ class _HeaderCard extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onChangePhoto;
   final VoidCallback onRemovePhoto;
-
-  // NEW
   final String? imageUrl;
 
   const _HeaderCard({
@@ -742,13 +776,11 @@ class _HeaderCard extends StatelessWidget {
           borderSide: BorderSide(color: cs.outlineVariant)),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide:
-          BorderSide(color: cs.outlineVariant.withOpacity(0.6))),
+          borderSide: BorderSide(color: cs.outlineVariant.withOpacity(0.6))),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: cs.secondary, width: 1.6)),
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     );
 
     return Card(
@@ -772,13 +804,10 @@ class _HeaderCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 42,
                       backgroundColor: cs.secondary.withOpacity(0.20),
-                      backgroundImage: imageUrl == null || imageUrl!.isEmpty
-                          ? null
-                          : NetworkImage(imageUrl!),
+                      backgroundImage: imageUrl == null || imageUrl!.isEmpty ? null : NetworkImage(imageUrl!),
                       child: (imageUrl == null || imageUrl!.isEmpty)
                           ? Icon(Icons.person_outline,
-                              size: 44,
-                              color: Theme.of(context).colorScheme.primary)
+                          size: 44, color: Theme.of(context).colorScheme.primary)
                           : null,
                     ),
                     Material(
@@ -789,18 +818,14 @@ class _HeaderCard extends StatelessWidget {
                         onTap: onChangePhoto,
                         child: const Padding(
                           padding: EdgeInsets.all(6),
-                          child: Icon(Icons.camera_alt_rounded,
-                              color: Colors.white, size: 18),
+                          child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                TextButton(
-                  onPressed: onChangePhoto,
-                  child: const Text('Change photo'),
-                ),
+                TextButton(onPressed: onChangePhoto, child: const Text('Change photo')),
                 TextButton(
                   onPressed: onRemovePhoto,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -809,6 +834,7 @@ class _HeaderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 16),
+
             // inline name + headline
             Expanded(
               child: Column(
@@ -818,10 +844,7 @@ class _HeaderCard extends StatelessWidget {
                     controller: nameCtrl,
                     onChanged: (_) => onChanged(),
                     decoration: dec('Full name'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                     validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                   ),
@@ -871,8 +894,7 @@ class _EditSection extends StatelessWidget {
                   height: 18,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    gradient:
-                    LinearGradient(colors: [cs.secondary, cs.tertiary]),
+                    gradient: LinearGradient(colors: [cs.secondary, cs.tertiary]),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -946,23 +968,16 @@ class _GmwLogo extends StatelessWidget {
   final double markSize;
   final double fontSize;
   final bool onDark;
-  const _GmwLogo(
-      {this.markSize = 26, this.fontSize = 20, this.onDark = false, super.key});
+  const _GmwLogo({this.markSize = 26, this.fontSize = 20, this.onDark = false, super.key});
 
   @override
   Widget build(BuildContext context) {
     final head = onDark ? Colors.white : _kHeading;
     final wordmark = Text.rich(
       TextSpan(children: [
-        TextSpan(
-            text: 'Gig',
-            style: TextStyle(color: head, fontWeight: FontWeight.w700)),
-        const TextSpan(
-            text: 'Me',
-            style: TextStyle(color: _kTeal, fontWeight: FontWeight.w700)),
-        TextSpan(
-            text: 'Work',
-            style: TextStyle(color: head, fontWeight: FontWeight.w700)),
+        TextSpan(text: 'Gig', style: TextStyle(color: head, fontWeight: FontWeight.w700)),
+        const TextSpan(text: 'Me', style: TextStyle(color: _kTeal, fontWeight: FontWeight.w700)),
+        TextSpan(text: 'Work', style: TextStyle(color: head, fontWeight: FontWeight.w700)),
       ]),
       style: TextStyle(fontSize: fontSize, height: 1.0, letterSpacing: 0.2),
     );
@@ -990,18 +1005,10 @@ class _GmwMark extends StatelessWidget {
         children: [
           Align(
               alignment: Alignment.centerLeft,
-              child: Container(
-                  width: h,
-                  height: h,
-                  decoration:
-                  const BoxDecoration(color: _kTeal, shape: BoxShape.circle))),
+              child: Container(width: h, height: h, decoration: const BoxDecoration(color: _kTeal, shape: BoxShape.circle))),
           Align(
               alignment: Alignment.centerRight,
-              child: Container(
-                  width: h,
-                  height: h,
-                  decoration:
-                  const BoxDecoration(color: _kViolet, shape: BoxShape.circle))),
+              child: Container(width: h, height: h, decoration: const BoxDecoration(color: _kViolet, shape: BoxShape.circle))),
           Container(
             width: w * 0.74,
             height: h * 0.34,
@@ -1013,6 +1020,156 @@ class _GmwMark extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Dynamic Links Editor
+class _ContactLinksEditor extends StatefulWidget {
+  final List<ContactLink> links;
+  final VoidCallback onChanged;
+  final bool Function(String) urlValidator;
+  final InputDecoration Function(String, {Widget? prefix}) decorationBuilder;
+
+  const _ContactLinksEditor({
+    required this.links,
+    required this.onChanged,
+    required this.urlValidator,
+    required this.decorationBuilder,
+  });
+
+  @override
+  State<_ContactLinksEditor> createState() => _ContactLinksEditorState();
+}
+
+class _ContactLinksEditorState extends State<_ContactLinksEditor> {
+  void _addEmpty() {
+    setState(() {
+      widget.links.add(ContactLink(label: '', url: ''));
+    });
+    widget.onChanged();
+  }
+
+  Icon _iconForLink(String label, String url) {
+    final t = (label + ' ' + url).toLowerCase();
+    if (t.contains('linkedin') || t.contains('lnkd')) return const Icon(Icons.business_outlined);
+    if (t.contains('github')) return const Icon(Icons.code_outlined);
+    if (t.contains('twitter') || t.contains('x.com')) return const Icon(Icons.alternate_email);
+    if (t.contains('youtube')) return const Icon(Icons.play_circle_outline);
+    if (t.contains('instagram')) return const Icon(Icons.camera_alt_outlined);
+    if (t.contains('facebook')) return const Icon(Icons.facebook_outlined);
+    if (t.contains('behance')) return const Icon(Icons.palette_outlined);
+    if (t.contains('dribbble')) return const Icon(Icons.sports_basketball_outlined);
+    return const Icon(Icons.link_outlined);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    Widget row(int i) {
+      final item = widget.links[i];
+      final labelCtrl = TextEditingController(text: item.label);
+      final urlCtrl = TextEditingController(text: item.url);
+
+      void writeBack() {
+        item.label = labelCtrl.text.trim();
+        item.url = urlCtrl.text.trim();
+        widget.onChanged();
+        setState(() {}); // to refresh icon when label/url changes
+      }
+
+      return Card(
+        elevation: 0,
+        margin: const EdgeInsets.only(bottom: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: cs.outlineVariant.withOpacity(0.6)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: labelCtrl,
+                      onChanged: (_) => writeBack(),
+                      decoration: widget.decorationBuilder('Label', prefix: const Icon(Icons.label_rounded)),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: urlCtrl,
+                      onChanged: (_) => writeBack(),
+                      decoration: widget.decorationBuilder('Link (https://...)',
+                          prefix: _iconForLink(labelCtrl.text, urlCtrl.text)),
+                      validator: (v) {
+                        final t = (v ?? '').trim();
+                        if (t.isEmpty) return 'Required';
+                        return widget.urlValidator(t) ? null : 'Invalid URL';
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: () {
+                      setState(() => widget.links.removeAt(i));
+                      widget.onChanged();
+                    },
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Remove',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 5,
+              height: 18,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(colors: [cs.secondary, cs.tertiary]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Links (add any: website, LinkedIn, GitHub, portfolio, etc.)',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: _addEmpty,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add link'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (widget.links.isEmpty)
+          OutlinedButton.icon(
+            onPressed: _addEmpty,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add your first link'),
+          )
+        else
+          Column(
+            children: [for (int i = 0; i < widget.links.length; i++) row(i)],
+          ),
+      ],
     );
   }
 }

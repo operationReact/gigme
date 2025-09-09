@@ -33,7 +33,9 @@ public class FreelancerProfileService {
                                             String github,
                                             Integer hourlyRateCents,
                                             String currency,
-                                            Boolean available) {
+                                            Boolean available,
+                                            String extraJson,
+                                            String socialLinksJson) {
         UserAccount user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("user not found"));
         // basic validation and normalization
         String name = displayName == null ? null : displayName.trim();
@@ -45,10 +47,15 @@ public class FreelancerProfileService {
             fp.update(name, professionalTitle, bio, skillsCsv, imageUrl,
                     location, contactEmail, phone, website, linkedin, github,
                     hourlyRateCents, currency, available);
+            // set extensible json fields if provided
+            if (extraJson != null && !extraJson.isBlank()) fp.setExtraJson(extraJson);
+            if (socialLinksJson != null && !socialLinksJson.isBlank()) fp.setSocialLinksJson(socialLinksJson);
             return fp;
         }
         FreelancerProfile fp = new FreelancerProfile(user, name, professionalTitle, bio, skillsCsv, imageUrl,
                 location, contactEmail, phone, website, linkedin, github, hourlyRateCents, currency, available);
+        if (extraJson != null && !extraJson.isBlank()) fp.setExtraJson(extraJson);
+        if (socialLinksJson != null && !socialLinksJson.isBlank()) fp.setSocialLinksJson(socialLinksJson);
         return repo.save(fp);
     }
 

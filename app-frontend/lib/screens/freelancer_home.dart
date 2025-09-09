@@ -2047,7 +2047,7 @@ class _QuickActions extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: () => _shareCard(context),
                   icon: const Icon(Icons.ios_share_outlined),
-                  label: const Text('Share card'),
+                  label: const Text('Copy GigMe Share card'),
                   style: FilledButton.styleFrom(
                     shape: const StadiumBorder(),
                   ),
