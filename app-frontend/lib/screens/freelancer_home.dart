@@ -698,6 +698,7 @@ class _ProfileIdentityCard extends StatelessWidget {
     final posts = 0;
     final followers = 0;
     final following = 0;
+    final profileViews = 0;
 
     return HoverScale(
       child: GlassCard(
@@ -753,24 +754,66 @@ class _ProfileIdentityCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _MetricPill(
-                              count: posts,
-                              label: 'Posts',
-                              icon: Icons.article_outlined),
-                          _MetricPill(
-                              count: followers,
-                              label: 'Followers',
-                              icon: Icons.group_outlined),
-                          _MetricPill(
-                              count: following,
-                              label: 'Following',
-                              icon:
-                              Icons.person_add_alt_1_outlined),
-                        ],
+                      // Adjusted metrics row to fit 4 metrics
+                      LayoutBuilder(
+                        builder: (ctx, c) {
+                          final isWide = c.maxWidth > 400;
+                          return isWide
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _MetricPill(
+                                          count: posts,
+                                          label: 'Posts',
+                                          icon: Icons.article_outlined),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _MetricPill(
+                                          count: followers,
+                                          label: 'Followers',
+                                          icon: Icons.group_outlined),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _MetricPill(
+                                          count: following,
+                                          label: 'Following',
+                                          icon: Icons.person_add_alt_1_outlined),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _MetricPill(
+                                          count: profileViews,
+                                          label: 'Profile views',
+                                          icon: Icons.visibility_outlined),
+                                    ),
+                                  ],
+                                )
+                              : Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    _MetricPill(
+                                        count: posts,
+                                        label: 'Posts',
+                                        icon: Icons.article_outlined),
+                                    _MetricPill(
+                                        count: followers,
+                                        label: 'Followers',
+                                        icon: Icons.group_outlined),
+                                    _MetricPill(
+                                        count: following,
+                                        label: 'Following',
+                                        icon: Icons.person_add_alt_1_outlined),
+                                    _MetricPill(
+                                        count: profileViews,
+                                        label: 'Profile views',
+                                        icon: Icons.visibility_outlined),
+                                  ],
+                                );
+                        },
                       ),
 
                       const SizedBox(height: 10),
