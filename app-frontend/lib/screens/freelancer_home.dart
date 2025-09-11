@@ -665,6 +665,8 @@ class _HeaderHero extends StatelessWidget {
                 label: const Text('Copy GigMe Share card'),
                 style: FilledButton.styleFrom(
                   shape: const StadiumBorder(),
+                  backgroundColor: _kIndigo, // Use theme color
+                  foregroundColor: Colors.white, // Ensure text/icon is white
                 ),
               ),
               const SizedBox(width: 12),
@@ -2639,13 +2641,9 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
           child: ClipRRect(
             borderRadius: borderRadius,
             child: Stack(
+              fit: StackFit.expand,
               children: [
-                // media preview (wrapped in Hero)
-                Positioned.fill(
-                  child: Hero(tag: heroTag, child: mediaLayer),
-                ),
-
-                // overlay gradient for readability
+                Positioned.fill(child: Hero(tag: heroTag, child: mediaLayer)),
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -2661,22 +2659,14 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     ),
                   ),
                 ),
-
-                // video play icon overlay (visible)
                 if (_kind == _MediaKind.video)
                   const Positioned.fill(
                     child: IgnorePointer(
                       child: Center(
-                        child: Icon(
-                          Icons.play_circle_fill_rounded,
-                          size: 56,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.play_circle_fill_rounded, size: 56, color: Colors.white),
                       ),
                     ),
                   ),
-
-                // animated shine — ONLY while loading
                 if (!_mediaLoaded)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -2705,8 +2695,6 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                       ),
                     ),
                   ),
-
-                // top-right type chip
                 Positioned(
                   top: 8,
                   right: 8,
@@ -2722,7 +2710,11 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                         Icon(_typeChipIcon, size: 16, color: _kHeading),
                         const SizedBox(width: 6),
                         Text(
-                          _kind == _MediaKind.image ? 'Image' : _kind == _MediaKind.video ? 'Video' : 'Doc',
+                          _kind == _MediaKind.image
+                              ? 'Image'
+                              : _kind == _MediaKind.video
+                                  ? 'Video'
+                                  : 'Doc',
                           style: const TextStyle(
                             color: _kHeading,
                             fontWeight: FontWeight.w700,
@@ -2733,8 +2725,6 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     ),
                   ),
                 ),
-
-                // title + actions
                 Positioned(
                   left: 12,
                   right: 12,
@@ -2744,7 +2734,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                     children: [
                       Expanded(
                         child: Text(
-                          (widget.item.title.isEmpty ? 'Untitled' : widget.item.title),
+                          widget.item.title.isEmpty ? 'Untitled' : widget.item.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -2756,20 +2746,17 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _ActionIcon(
-                        icon: Icons.open_in_new_rounded,
-                        onTap: _openAccordingToType,
-                      ),
+                      _ActionIcon(icon: Icons.open_in_new_rounded, onTap: _openAccordingToType),
                       const SizedBox(width: 6),
                       _ActionIcon(
-                        icon: _kind == _MediaKind.document ? Icons.download_rounded : Icons.fullscreen_rounded,
+                        icon: _kind == _MediaKind.document
+                            ? Icons.download_rounded
+                            : Icons.fullscreen_rounded,
                         onTap: _openAccordingToType,
                       ),
                     ],
                   ),
                 ),
-
-                // full-card tap
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
