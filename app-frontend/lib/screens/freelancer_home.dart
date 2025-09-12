@@ -255,7 +255,8 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                icon: Icon(Icons.notifications_outlined, color: cs.primary),
                 onPressed: () {},
               ),
               Positioned(
@@ -265,7 +266,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
+                    color: cs.primary, // themed badge color
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
@@ -1355,81 +1356,58 @@ class _StatsAndProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final home = HomeData.of(context);
     final d = home.data;
-    final loading = home.loading;
+    final loading = home.loading || d == null;
 
-    Widget content;
-    if (loading || d == null) {
-      content = LayoutBuilder(builder: (ctx, c) {
+    Widget skeleton() {
+      return LayoutBuilder(builder: (ctx, c) {
         final isWide = c.maxWidth > 600;
-        final placeholders = List.generate(
-          4,
-              (i) => Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: i == 3 ? 0 : 14),
-              child: const _SkeletonBar(
-                  width: double.infinity, height: 90),
-            ),
-          ),
-        );
-        if (isWide) return Row(children: placeholders);
+        final tiles = List.generate(4, (i) => const _SkeletonBar(width: double.infinity, height: 90));
+        if (isWide) {
+          return Row(
+            children: [
+              for (int i = 0; i < tiles.length; i++) ...[
+                Expanded(child: Padding(
+                  padding: EdgeInsets.only(right: i == tiles.length - 1 ? 0 : 14),
+                  child: tiles[i],
+                ))
+              ]
+            ],
+          );
+        }
         return Column(
-          children: List.generate(
-            4,
-                (i) => Padding(
-              padding:
-              EdgeInsets.only(bottom: i == 3 ? 0 : 14),
-              child: const SizedBox(
-                height: 90,
-                child: _SkeletonBar(
-                    width: double.infinity, height: 90),
-              ),
-            ),
-          ),
+          children: [
+            for (int i = 0; i < tiles.length; i++) ...[
+              SizedBox(height: 90, child: tiles[i]),
+              if (i != tiles.length - 1) const SizedBox(height: 14),
+            ]
+          ],
         );
       });
-    } else {
+    }
+
+    Widget stats() {
       final tiles = [
-        _AnimatedStat(
-            icon: Icons.folder_open_outlined,
-            label: 'Projects',
-            value: d.assignedCount,
-            tint: _kIndigo),
-        _AnimatedStat(
-            icon: Icons.people_outline,
-            label: 'Clients',
-            value: d.distinctClients,
-            tint: _kTeal),
-        _AnimatedStat(
-            icon: Icons.attach_money,
-            label: 'Earnings',
-            value: d.totalBudgetCents ~/ 100,
-            currency: true,
-            tint: _kViolet),
-        _AnimatedStat(
-            icon: Icons.emoji_events_outlined,
-            label: 'Success',
-            value: d.successPercent,
-            suffix: '%',
-            tint: _kIndigo),
+        _AnimatedStat(icon: Icons.folder_open_outlined, label: 'Projects', value: d!.assignedCount, tint: _kIndigo),
+        _AnimatedStat(icon: Icons.people_outline, label: 'Clients', value: d.distinctClients, tint: _kTeal),
+        _AnimatedStat(icon: Icons.attach_money, label: 'Earnings', value: d.totalBudgetCents ~/ 100, currency: true, tint: _kViolet),
+        _AnimatedStat(icon: Icons.emoji_events_outlined, label: 'Success', value: d.successPercent, suffix: '%', tint: _kIndigo),
       ];
-      content = LayoutBuilder(builder: (ctx, c) {
+      return LayoutBuilder(builder: (ctx, c) {
         final isWide = c.maxWidth > 600;
         if (isWide) {
-          final rowChildren = <Widget>[];
-          for (var i = 0; i < tiles.length; i++) {
-            rowChildren.add(Expanded(child: tiles[i]));
-            if (i != tiles.length - 1) {
-              rowChildren.add(const SizedBox(width: 14));
-            }
-          }
-          return Row(children: rowChildren);
+          return Row(children: [
+            for (int i = 0; i < tiles.length; i++) ...[
+              Expanded(child: tiles[i]),
+              if (i != tiles.length - 1) const SizedBox(width: 14),
+            ]
+          ]);
         }
-        final col = <Widget>[];
-        for (var i = 0; i < tiles.length; i++) {
-          col.add(tiles[i]);
-          if (i != tiles.length - 1) col.add(const SizedBox(height: 14));
-        }
-        return Column(children: col);
+        return Column(children: [
+          for (int i = 0; i < tiles.length; i++) ...[
+            tiles[i],
+            if (i != tiles.length - 1) const SizedBox(height: 14),
+          ]
+        ]);
       });
     }
 
@@ -1439,14 +1417,9 @@ class _StatsAndProgress extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Performance Overview',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: _kHeading)),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: _kHeading)),
             const SizedBox(height: 16),
-            content
+            loading ? skeleton() : stats(),
           ],
         ),
       ),
@@ -3124,8 +3097,21 @@ class _OutlineSoftButton extends StatelessWidget {
   final String label;
   const _OutlineSoftButton({super.key, required this.icon, required this.label});
   @override
-  Widget build(BuildContext context) =>
-      OutlinedButton.icon(onPressed: () {}, icon: Icon(icon), label: Text(label));
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return OutlinedButton.icon(
+      onPressed: () {},
+      style: OutlinedButton.styleFrom(
+        foregroundColor: cs.primary,
+        side: BorderSide(color: cs.primary.withValues(alpha: 0.40)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: const StadiumBorder(),
+        backgroundColor: cs.primary.withValues(alpha: 0.05),
+      ),
+      icon: Icon(icon, color: cs.primary),
+      label: Text(label),
+    );
+  }
 }
 
 class _SkeletonBar extends StatelessWidget {
@@ -3635,14 +3621,6 @@ class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
   }
 }
 
-// Helper: download bytes (used for pdfx)
-Future<Uint8List> _downloadBytes(String url) async {
-  final res = await http.get(Uri.parse(url));
-  if (res.statusCode != 200) {
-    throw Exception('HTTP ${res.statusCode}');
-  }
-  return res.bodyBytes;
-}
 
 // PDF preview dialog for non-web PDF files
 class _PdfPreviewDialog extends StatefulWidget {
@@ -3751,3 +3729,12 @@ Future<void> _openDocument(BuildContext context, HomePortfolioDto item) async {
     }
   }
 }
+
+Future<Uint8List> _downloadBytes(String url) async {
+  final res = await http.get(Uri.parse(url));
+  if (res.statusCode != 200) {
+    throw Exception('HTTP ' + res.statusCode.toString());
+  }
+  return res.bodyBytes;
+}
+

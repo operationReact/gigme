@@ -1,207 +1,4091 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../services/auth_service.dart';
-import 'freelancer_profile_screen.dart';
-import 'client_profile_screen.dart';
-import '../main.dart';
-import '../widgets/animated_background.dart';
-import '../widgets/sign_in_components.dart';
+// lib/screens/freelancer_home.dart
+
 import 'dart:ui' as ui;
-import 'register_freelancer.dart';
-import 'register_client.dart';
+import 'dart:math' as math;
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
+import '../services/session_service.dart';
+import '../api/home_api.dart';
+import '../widgets/apply_for_work_cta.dart';
+import '../job_service.dart';
+import '../widgets/profile_preview_card.dart';
+import '../main.dart';
+import '../services/s3_service.dart';
+import 'package:http/http.dart' as http;
+import '../env.dart';
+import 'share_card_public.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-  static const route = '/login';
+// ✅ Contact imports
+import '../api/contact_api.dart';
+import '../models/contact.dart';
 
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
+import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:pdfx/pdfx.dart';
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _pwd = TextEditingController();
-  bool _loading = false;
-  bool _obscure = true;
+// ✅ Social imports
+import '../sections/social_strip.dart';
+import '../sections/home_feed_preview.dart';
+import '../sections/who_to_follow.dart';
 
-  late AnimationController _shakeCtl; late Animation<double> _shakeAnim;
-  enum _BtnState { idle, loading, success }
-  _BtnState _btn = _BtnState.idle; bool _hoverPrimary=false;
-  String? _error;
+// Brand palette constants
+const _kTeal = Color(0xFF00C2A8);
+const _kIndigo = Color(0xFF3B82F6);
+const _kViolet = Color(0xFF7C3AED);
+const _kHeading = Color(0xFF111827);
+const _kBody = Color(0xFF374151);
+const _kMuted = Color(0xFF6B7280);
 
-  UserType _typeFromArgs(BuildContext context) {
-    final arg = ModalRoute.of(context)!.settings.arguments;
-    if (arg is UserType) return arg;
-    return UserType.freelancer;
-  }
+// Layout tokens
+const _kMaxPageWidth = 1280.0; // keeps large screens readable
+const _kDesktopBreakpoint = 1024.0; // 8/12 + 4/12 columns above this
 
-  @override
-  void initState(){
-    super.initState();
-    _shakeCtl = AnimationController(vsync:this, duration: const Duration(milliseconds:460));
-    _shakeAnim = CurvedAnimation(parent: _shakeCtl, curve: Curves.elasticIn);
-  }
-  void _triggerShake(){ _shakeCtl.forward(from:0); }
+// Helper for dark mode checks reused across widgets
+bool _isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
 
-  Future<void> _submit(UserType type) async {
-    if (!_formKey.currentState!.validate()) { setState(()=> _error='Please fix the errors'); _triggerShake(); return; }
-    if(_btn==_BtnState.loading || _btn==_BtnState.success) return;
-    setState(()=> {_btn=_BtnState.loading, _error=null});
-    await Future.delayed(const Duration(milliseconds: 650)); // simulate call
-    final auth = AuthService.instance;
-    auth.login(type, name: _email.text.split('@').first);
-    if(!mounted) return;
-    setState(()=> _btn=_BtnState.success);
-    await Future.delayed(const Duration(milliseconds: 520));
-    if(!mounted) return;
-    // If profile missing, go create
-    if (type == UserType.freelancer && !auth.freelancerProfileCreated) {
-      if (mounted) Navigator.of(context).pushReplacementNamed(FreelancerProfileScreen.route);
-      return;
-    }
-    if (type == UserType.client && !auth.clientProfileCreated) {
-      if (mounted) Navigator.of(context).pushReplacementNamed(ClientProfileScreen.route);
-      return;
-    }
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(JobsPage.route, (_) => false);
-    }
-  }
+/// ===== Brand Logo =====
 
-  @override
-  void dispose() { _email.dispose(); _pwd.dispose(); _shakeCtl.dispose(); super.dispose(); }
+class _GmwLogo extends StatelessWidget {
+  final double markSize;
+  final double fontSize;
+  final bool showTagline;
+  final double opacity;
+
+  const _GmwLogo({
+    this.markSize = 32,
+    this.fontSize = 24,
+    this.showTagline = false,
+    this.opacity = 1,
+    super.key,
+  });
+
+  // ✅ const redirecting constructors so these can be used in const widgets
+  const _GmwLogo.compact()
+      : this(markSize: 26, fontSize: 20, showTagline: false);
+
+  const _GmwLogo.watermark()
+      : this(markSize: 72, fontSize: 56, showTagline: false, opacity: .06);
 
   @override
   Widget build(BuildContext context) {
-    final type = _typeFromArgs(context);
-    final isFreelancer = type == UserType.freelancer;
-    final gradient = const LinearGradient(colors: [Color(0xFF0D9488), Color(0xFF2563EB)]);
-    final cs = Theme.of(context).colorScheme;
+    final wordmark = Text.rich(
+      TextSpan(children: const [
+        TextSpan(
+            text: 'Gig',
+            style: TextStyle(color: _kHeading, fontWeight: FontWeight.w800)),
+        TextSpan(
+            text: 'Me',
+            style: TextStyle(color: _kTeal, fontWeight: FontWeight.w800)),
+        TextSpan(
+            text: 'Work',
+            style: TextStyle(color: _kHeading, fontWeight: FontWeight.w800)),
+      ]),
+      style: TextStyle(fontSize: fontSize, height: 1.0),
+    );
 
-    final pwdStrength = _strengthFor(_pwd.text); final pwdStrengthLabel=_strengthLabel(pwdStrength);
+    final tagline = const Text(
+      'People need People',
+      style: TextStyle(color: _kMuted, fontSize: 12, fontWeight: FontWeight.w600),
+    );
+
+    return Opacity(
+      opacity: opacity,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _GmwMark(size: markSize),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              wordmark,
+              if (showTagline) const SizedBox(height: 4),
+              if (showTagline) tagline,
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GmwMark extends StatelessWidget {
+  final double size;
+  const _GmwMark({required this.size, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = size;
+    final w = size * 1.7;
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // two discs
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: h,
+              height: h,
+              decoration:
+              const BoxDecoration(color: _kTeal, shape: BoxShape.circle),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              width: h,
+              height: h,
+              decoration:
+              const BoxDecoration(color: _kViolet, shape: BoxShape.circle),
+            ),
+          ),
+          // link bar with white outline
+          Container(
+            width: w * 0.74,
+            height: h * 0.34,
+            decoration: BoxDecoration(
+              color: _kIndigo,
+              borderRadius: BorderRadius.circular(h),
+              border: Border.all(color: Colors.white, width: h * 0.10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FreelancerHomePage extends StatefulWidget {
+  static const routeName = '/home/freelancer';
+  const FreelancerHomePage({super.key});
+
+  @override
+  State<FreelancerHomePage> createState() => _FreelancerHomePageState();
+}
+
+// NEW: Top-level primary tabs for the home screen
+enum _PrimaryTab { feed, portfolio, jobs }
+
+class _FreelancerHomePageState extends State<FreelancerHomePage> {
+  int? _newJobsCount;
+  bool _loading = true;
+
+  // NEW: current selected tab (default: Creator feed)
+  _PrimaryTab _currentTab = _PrimaryTab.feed;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCount();
+  }
+
+  Future<void> _loadCount() async {
+    try {
+      final count = await JobService().countNewJobs();
+      if (mounted) {
+        setState(() {
+          _newJobsCount = count;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _newJobsCount = null;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _onApplyPressed() {}
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isDesktop = width >= _kDesktopBreakpoint;
 
     return Scaffold(
-      body: AnimatedSignInBackground(
-        child: Container(
-          decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft,end: Alignment.bottomRight, colors:[cs.secondary.withOpacity(.25), cs.tertiary.withOpacity(.25)])),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
-                child: AnimatedBuilder(
-                  animation: _shakeCtl,
-                  builder:(c,child){ final dx=_shakeCtl.isAnimating? (1-_shakeAnim.value)*14*(_shakeAnim.value%0.2>0.1?-1:1):0; return Transform.translate(offset: Offset(dx.toDouble(),0), child: child); },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: Container(
-                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white.withOpacity(0.16))),
-                        padding: const EdgeInsets.fromLTRB(36,40,36,44),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(children:[
-                                Container(height:54,width:54, decoration: BoxDecoration(gradient: LinearGradient(colors:[cs.secondary, cs.tertiary]), shape: BoxShape.circle, boxShadow:[BoxShadow(color: cs.secondary.withOpacity(.45), blurRadius:20, offset: const Offset(0,10))]), child: Icon(isFreelancer? Icons.bolt_rounded: Icons.work_outline_rounded, color: Colors.white, size:30)),
-                                const SizedBox(width:18),
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                                  Text('Gigmework', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                                  const SizedBox(height:4),
-                                  Text(isFreelancer? 'Find gigs, grow your career' : 'Find talent, scale your team', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
-                                ]))
-                              ]),
-                              const SizedBox(height: 34),
-                              TextFormField(
-                                controller: _email,
-                                style: const TextStyle(color: Colors.black87),
-                                decoration: signInInputDecoration(context, label: 'Email', hint: 'you@example.com', icon: Icons.email_outlined, errorText: _error),
-                                validator: (v){ if (v==null || v.trim().isEmpty) return 'Email required'; if(!v.contains('@')) return 'Invalid email'; return null; },
-                                onChanged: (_){ if(_error!=null) setState(()=> _error=null); },
-                              ),
-                              const SizedBox(height: 20),
-                              TextFormField(
-                                controller: _pwd,
-                                style: const TextStyle(color: Colors.black87),
-                                obscureText: _obscure,
-                                decoration: signInInputDecoration(context, label: 'Password', icon: Icons.lock_outline, suffix: Row(mainAxisSize: MainAxisSize.min, children:[
-                                  HoverLink(text: 'Forgot?', onTap: ()=> Navigator.of(context).pushNamed('/forgot-password'), fontSize: 12),
-                                  AnimatedSwitcher(duration: const Duration(milliseconds:260), transitionBuilder: (child,anim)=> RotationTransition(turns: anim, child: child), child: IconButton(key: ValueKey(_obscure), onPressed: ()=> setState(()=> _obscure=!_obscure), icon: Icon(_obscure? Icons.visibility: Icons.visibility_off)))
-                                ])),
-                                validator: (v){ if (v==null || v.length<4) return 'Min 4 chars'; return null; },
-                                onChanged: (_){ if(_error!=null) setState(()=> _error=null); setState((){}); },
-                              ),
-                              if(_pwd.text.isNotEmpty) ...[
-                                const SizedBox(height:12),
-                                PasswordStrengthMeter(strength: pwdStrength, label: pwdStrengthLabel),
-                              ],
-                              const SizedBox(height: 28),
-                              SignInPrimaryButton(
-                                state: _btn==_BtnState.idle? SignInButtonState.idle: (_btn==_BtnState.loading? SignInButtonState.loading: SignInButtonState.success),
-                                onPressed: _btn==_BtnState.idle? ()=> _submit(type): null,
-                                label: 'Continue',
-                                icon: Icons.login,
-                                height: 56,
-                              ),
-                              const SizedBox(height: 26),
-                              Row(children:[
-                                Expanded(child: Divider(color: Colors.black.withOpacity(0.15), thickness:1)),
-                                const SizedBox(width:12),
-                                const Text('or continue with', style: TextStyle(fontSize:12, color: Colors.black54)),
-                                const SizedBox(width:12),
-                                Expanded(child: Divider(color: Colors.black.withOpacity(0.15), thickness:1)),
-                              ]),
-                              const SizedBox(height: 20),
-                              const SocialLoginButtons(),
-                              const SizedBox(height: 24),
-                              Wrap(alignment: WrapAlignment.center, spacing:6, children:[
-                                const Text('Need an account?', style: TextStyle(color: Colors.black54)),
-                                if(isFreelancer) HoverLink(text: 'Create freelancer account', onTap: ()=> Navigator.of(context).pushNamed(RegisterFreelancerPage.routeName), fontSize: 14, fontWeight: FontWeight.w600) else HoverLink(text: 'Create client account', onTap: ()=> Navigator.of(context).pushNamed(RegisterClientPage.routeName), fontSize: 14, fontWeight: FontWeight.w600)
-                              ])
+      extendBodyBehindAppBar: true,
+      floatingActionButton: isMobile
+          ? (_currentTab == _PrimaryTab.portfolio
+          ? const _AddPortfolioFab()
+          : ApplyForWorkCta(
+        initialCount: _newJobsCount,
+        onPressed: _onApplyPressed,
+        dense: true,
+        showLabel: true,
+      ))
+          : null,
+      appBar: AppBar(
+        title:
+        const _GmwLogo(markSize: 20, fontSize: 18, showTagline: false),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          if (!isMobile && !isDesktop && _currentTab != _PrimaryTab.portfolio)
+            Padding(
+              padding:
+              const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              child: ApplyForWorkCta(
+                initialCount: _newJobsCount,
+                onPressed: _onApplyPressed,
+                dense: true,
+                showLabel: true,
+              ),
+            ),
+          // Share icon for small screens
+          if (isMobile)
+            IconButton(
+              tooltip: 'Copy GigMe Share card',
+              icon: const Icon(Icons.ios_share_outlined),
+              onPressed: () => _copyShareCard(context),
+            ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {},
+              ),
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: FreelancerHomeLoader(
+        child: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFEEF2FF), Color(0xFFF0FDFA)],
+                ),
+              ),
+            ),
+            const _AnimatedBackground(),
+            Align(
+              alignment: Alignment.topCenter,
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      cs.primary.withValues(alpha: 0.25),
+                      cs.secondary.withValues(alpha: 0.18),
+                      cs.tertiary.withValues(alpha: 0.15),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // ✅ watermark/logo overlay in the Stack
+            /*const Positioned(
+              top: 10,
+              right: 16,
+              child: IgnorePointer(child: _GmwLogo.compact()),
+            ),
+*/
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final home = HomeData.of(ctx);
+                  final uid = home.data?.userId;
+                  final isWide =
+                      constraints.maxWidth >= _kDesktopBreakpoint;
+
+                  return SingleChildScrollView(
+                    padding:
+                    const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                            maxWidth: _kMaxPageWidth),
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.stretch,
+                          children: [
+                            _HeaderHero(
+                              isWide: isWide,
+                              newJobsCount: _newJobsCount,
+                              onApplyPressed: _onApplyPressed,
+                            ),
+                            const SizedBox(height: 12),
+
+                            if (isWide)
+                              Row(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 5,
+                                    child: _ProfileIdentityCard(
+                                      onOpenFeed: () => setState(() {
+                                        _currentTab =
+                                            _PrimaryTab.feed;
+                                      }),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    flex: 7,
+                                    child: _StatsAndProgress(),
+                                  ),
+                                ],
+                              )
+                            else
+                              const _ProfileIdentityCard(),
+
+                            if (!isWide) ...[
+                              const SizedBox(height: 12),
+                              const _StatsAndProgress(),
                             ],
-                          ),
+
+                            // (Quick actions removed)
+                            const SizedBox(height: 16),
+
+                            _PrimaryNavBar(
+                              current: _currentTab,
+                              onChanged: (t) =>
+                                  setState(() => _currentTab = t),
+                              jobsBadge: _newJobsCount,
+                            ),
+                            const SizedBox(height: 16),
+
+                            _selectedSection(uid),
+
+                            const SizedBox(height: 24),
+                          ],
                         ),
                       ),
                     ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // NEW: Only one big section rendered based on the selected tab
+  Widget _selectedSection(int? uid) {
+    switch (_currentTab) {
+      case _PrimaryTab.feed:
+        if (uid == null) {
+          return const GlassCard(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Sign in to see your creator feed'),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HomePostsSection(),
+          ],
+        );
+
+      case _PrimaryTab.portfolio:
+        return const _PortfolioSection();
+
+      case _PrimaryTab.jobs:
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ActiveContracts(),
+            SizedBox(height: 16),
+            _Recommendations(),
+          ],
+        );
+    }
+  }
+}
+
+// Helper used in header and app bar
+Future<void> _copyShareCard(BuildContext context) async {
+  final uid = HomeData.of(context).data?.userId ?? SessionService.instance.user?.id;
+  if (uid == null) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Sign in to share your card.')));
+    return;
+  }
+
+  final url = ShareCardPublicPage.buildUrlForUser(uid);
+
+  await Clipboard.setData(ClipboardData(text: url));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text('Share link copied to clipboard'),
+      action: SnackBarAction(
+        label: 'Preview',
+        onPressed: () {
+          Navigator.of(context).pushNamed(
+            ShareCardPublicPage.routeName,
+            arguments: {'u': uid},
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class HomeData extends InheritedWidget {
+  final FreelancerHomeDto? data;
+  final bool loading;
+  final bool error;
+  final VoidCallback retry;
+  const HomeData({
+    super.key,
+    required this.data,
+    required this.loading,
+    required this.error,
+    required this.retry,
+    required Widget child,
+  }) : super(child: child);
+
+  static HomeData of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<HomeData>()!;
+
+  @override
+  bool updateShouldNotify(HomeData old) =>
+      data != old.data || loading != old.loading || error != old.error;
+}
+
+class FreelancerHomeLoader extends StatefulWidget {
+  final Widget child;
+  const FreelancerHomeLoader({super.key, required this.child});
+  @override
+  State<FreelancerHomeLoader> createState() =>
+      _FreelancerHomeLoaderState();
+}
+
+class _FreelancerHomeLoaderState extends State<FreelancerHomeLoader>
+    with RouteAware {
+  FreelancerHomeDto? _dto;
+  bool _loading = true;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    _load();
+  }
+
+  @override
+  didPush() {
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    final user = SessionService.instance.user;
+    if (user == null) {
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
+      return;
+    }
+    try {
+      final dto = await HomeApi().getHome(user.id);
+      if (!mounted) return;
+      setState(() {
+        _dto = dto;
+        _loading = false;
+        _error = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeData(
+      data: _dto,
+      loading: _loading,
+      error: _error,
+      retry: _load,
+      child: widget.child,
+    );
+  }
+}
+
+// Animated subtle moving radial gradients / particles
+class _AnimatedBackground extends StatefulWidget {
+  const _AnimatedBackground();
+  @override
+  State<_AnimatedBackground> createState() =>
+      _AnimatedBackgroundState();
+}
+
+class _AnimatedBackgroundState extends State<_AnimatedBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (ctx, _) {
+        final t = _c.value;
+        return CustomPaint(
+          painter: _BgPainter(t),
+          size: Size.infinite,
+        );
+      },
+    );
+  }
+}
+
+class _BgPainter extends CustomPainter {
+  final double t;
+  _BgPainter(this.t);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final colors = [
+      Colors.purpleAccent.withValues(alpha: 0.12),
+      Colors.cyanAccent.withValues(alpha: 0.10),
+      Colors.blue.withValues(alpha: 0.07),
+    ];
+    for (int i = 0; i < colors.length; i++) {
+      final progress = (t + i * 0.33) % 1.0;
+      final dx =
+          size.width * (0.2 + 0.6 * math.sin(progress * math.pi * 2 + i));
+      final dy =
+          size.height * (0.15 + 0.5 * math.cos(progress * math.pi * 2 + i));
+      final radius = size.shortestSide *
+          (0.25 + 0.1 * math.sin(progress * math.pi * 2));
+      final paint = Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(dx, dy),
+          radius,
+          [colors[i], Colors.transparent],
+        );
+      canvas.drawCircle(Offset(dx, dy), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BgPainter oldDelegate) =>
+      oldDelegate.t != t;
+}
+
+// Header hero
+// Header hero
+class _HeaderHero extends StatelessWidget {
+  final bool isWide;
+  final int? newJobsCount;
+  final VoidCallback? onApplyPressed;
+
+  const _HeaderHero({
+    required this.isWide,
+    this.newJobsCount,
+    this.onApplyPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Title removed; keep spacer to push actions to the right
+        const Expanded(child: SizedBox()),
+
+        if (isWide)
+          Row(
+            children: [
+              // Apply for work CTA added here so it lines up with Edit Profile etc.
+              if (onApplyPressed != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: ApplyForWorkCta(
+                    initialCount: newJobsCount,
+                    onPressed: onApplyPressed!,
+                    dense: true,
+                    showLabel: true,
+                  ),
+                ),
+              ],
+
+              _GradientButton(
+                icon: Icons.edit_outlined,
+                label: 'Edit Profile',
+                onPressed: () => Navigator.of(context).pushNamed('/profile/user'),
+              ),
+              const SizedBox(width: 12),
+              // ✅ Copy GigMe Share card beside Edit Profile
+              FilledButton.icon(
+                onPressed: () => _copyShareCard(context),
+                icon: const Icon(Icons.ios_share_outlined),
+                label: const Text('Copy GigMe Share card'),
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  backgroundColor: _kIndigo, // Use theme color
+                  foregroundColor: Colors.white, // Ensure text/icon is white
+                ),
+              ),
+              const SizedBox(width: 12),
+              const _OutlineSoftButton(
+                  icon: Icons.notifications_outlined,
+                  label: 'Notifications'),
+            ],
+          )
+      ],
+    );
+  }
+}
+
+
+/// ✅ NEW: Old-style profile card brought into the new page
+class _ProfileIdentityCard extends StatelessWidget {
+  final VoidCallback? onOpenFeed;
+  const _ProfileIdentityCard({this.onOpenFeed});
+
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+
+    final name = d?.displayName ?? 'Your Name';
+    final title = d?.professionalTitle ?? 'Public Figure';
+    final bio =
+        d?.bio ?? 'Building robust apps with delightful UX.';
+    final avatarUrl = d?.imageUrl;
+
+    final posts = 0;
+    final followers = 0;
+    final following = 0;
+    final profileViews = 0;
+
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProfileAvatar(url: avatarUrl, loading: loading),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _kHeading,
+                          )),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                color: _kMuted,
+                                fontWeight: FontWeight.w600,
+                              )),
+                          const SizedBox(width: 8),
+                          const _TinyBadge(
+                              icon: Icons.verified, label: 'Pro'),
+                          const SizedBox(width: 6),
+                          const _TinyBadge(
+                              icon: Icons.star_border_rounded,
+                              label: 'Creator'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        bio,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: _kBody),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Adjusted metrics row to fit 4 metrics
+                      LayoutBuilder(
+                        builder: (ctx, c) {
+                          final isWide = c.maxWidth > 400;
+                          return isWide
+                              ? Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _MetricPill(
+                                    count: posts,
+                                    label: 'Posts',
+                                    icon: Icons.article_outlined),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _MetricPill(
+                                    count: followers,
+                                    label: 'Followers',
+                                    icon: Icons.group_outlined),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _MetricPill(
+                                    count: following,
+                                    label: 'Following',
+                                    icon: Icons.person_add_alt_1_outlined),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _MetricPill(
+                                    count: profileViews,
+                                    label: 'Profile views',
+                                    icon: Icons.visibility_outlined),
+                              ),
+                            ],
+                          )
+                              : Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _MetricPill(
+                                  count: posts,
+                                  label: 'Posts',
+                                  icon: Icons.article_outlined),
+                              _MetricPill(
+                                  count: followers,
+                                  label: 'Followers',
+                                  icon: Icons.group_outlined),
+                              _MetricPill(
+                                  count: following,
+                                  label: 'Following',
+                                  icon: Icons.person_add_alt_1_outlined),
+                              _MetricPill(
+                                  count: profileViews,
+                                  label: 'Profile views',
+                                  icon: Icons.visibility_outlined),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: onOpenFeed,
+                        icon: const Icon(Icons.open_in_new_rounded,
+                            size: 18),
+                        label: const Text('Open feed'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _kIndigo,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  final String? url;
+  final bool loading;
+  const _ProfileAvatar(
+      {required this.url, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = 72.0;
+    return Stack(
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: SweepGradient(
+              colors: [_kTeal, _kIndigo, _kViolet, _kTeal],
+              stops: [0, .33, .66, 1],
+            ),
+            boxShadow: [
+              BoxShadow(
+                  color: Color(0x2200C2A8),
+                  blurRadius: 18,
+                  offset: Offset(0, 6))
+            ],
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.all(6),
+          width: size - 12,
+          height: size - 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            color: Colors.white,
+            image: (url != null && url!.isNotEmpty)
+                ? DecorationImage(
+              image: NetworkImage(kIsWeb &&
+                  url!.startsWith('http://')
+                  ? url!.replaceFirst(
+                  'http://', 'https://')
+                  : url!),
+              fit: BoxFit.cover,
+            )
+                : null,
+          ),
+          child: (url == null || url!.isEmpty)
+              ? const Icon(Icons.person, size: 32, color: _kMuted)
+              : null,
+        ),
+        if (loading)
+          const Positioned.fill(
+            child: Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2))),
+          ),
+      ],
+    );
+  }
+}
+
+class _TinyBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _TinyBadge({required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 6,
+              offset: Offset(0, 2))
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: _kIndigo),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _kHeading,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricPill extends StatelessWidget {
+  final int count;
+  final String label;
+  final IconData icon;
+  const _MetricPill(
+      {required this.count, required this.label, required this.icon});
+
+  String _fmt(int v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
+    return '$v';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        border: Border.all(color: Colors.white),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 8,
+              offset: Offset(0, 2))
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: _kHeading),
+          const SizedBox(width: 8),
+          Text(_fmt(count),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800, color: _kHeading)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ✅ RICH PRIMARY NAV BAR (animated pill + badge) — center & refined idle/hover states
+class _PrimaryNavBar extends StatelessWidget {
+  final _PrimaryTab current;
+  final ValueChanged<_PrimaryTab> onChanged;
+  final int? jobsBadge;
+
+  const _PrimaryNavBar({
+    super.key,
+    required this.current,
+    required this.onChanged,
+    this.jobsBadge,
+  });
+
+  int get _index =>
+      current == _PrimaryTab.feed
+          ? 0
+          : current == _PrimaryTab.portfolio
+          ? 1
+          : 2;
+
+  List<Color> _gradFor(_PrimaryTab t) {
+    switch (t) {
+      case _PrimaryTab.feed:
+        return const [_kIndigo, _kViolet];
+      case _PrimaryTab.portfolio:
+        return const [Color(0xFF0EA5E9), _kViolet];
+      case _PrimaryTab.jobs:
+        return const [Color(0xFF22C55E), _kIndigo];
+    }
+  }
+
+  Alignment _slotAlignment(int index, int count) {
+    final step = count == 1 ? 0.0 : 2.0 / (count - 1);
+    return Alignment(-1.0 + index * step, 0.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Creator feed', 'Portfolio', 'Jobs'];
+    const icons = [
+      Icons.dynamic_feed_outlined,
+      Icons.work_outline,
+      Icons.work_history_outlined
+    ];
+
+    return HoverScale(
+      child: GlassCard(
+        child: LayoutBuilder(
+          builder: (ctx, c) {
+            const trackPadding = 6.0;
+            const itemCount = 3;
+            final trackWidth = c.maxWidth - (trackPadding * 2);
+            final slotWidth = trackWidth / itemCount;
+
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                height: 56,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.72),
+                        Colors.white.withValues(alpha: 0.64),
+                      ],
+                    ),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.95)),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x09000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 6)),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Selected pill (aligned and sized to slot)
+                      Padding(
+                        padding: const EdgeInsets.all(trackPadding),
+                        child: AnimatedAlign(
+                          duration:
+                          const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          alignment: _slotAlignment(
+                              _index, itemCount),
+                          child: SizedBox(
+                            width: slotWidth,
+                            height: double.infinity,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius:
+                                BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: _gradFor(current),
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _gradFor(current)
+                                        .last
+                                        .withValues(alpha: .30),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Buttons row with refined idle/hover visuals
+                      Padding(
+                        padding: const EdgeInsets.all(trackPadding),
+                        child: Row(
+                          children: List.generate(itemCount, (i) {
+                            final tab = i == 0
+                                ? _PrimaryTab.feed
+                                : i == 1
+                                ? _PrimaryTab.portfolio
+                                : _PrimaryTab.jobs;
+                            final isSelected = i == _index;
+                            final showBadge =
+                                (tab == _PrimaryTab.jobs) &&
+                                    (jobsBadge != null) &&
+                                    (jobsBadge! > 0);
+
+                            return SizedBox(
+                              width: slotWidth,
+                              height: double.infinity,
+                              child: _NavButton(
+                                icon: icons[i],
+                                label: labels[i],
+                                selected: isSelected,
+                                onTap: () => onChanged(tab),
+                                trailingBadge: showBadge
+                                    ? _CountBadge(count: jobsBadge!)
+                                    : null,
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget? trailingBadge;
+
+  const _NavButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailingBadge,
+  });
+
+  @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 220));
+
+  bool _hover = false;
+
+  @override
+  void didUpdateWidget(covariant _NavButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Subtle professional treatment:
+    // - muted when idle
+    // - shifts to normal on hover
+    final fg =
+    widget.selected ? Colors.white : (_hover ? _kBody : _kMuted);
+
+    // Light glassy fill + hairline border on hover for unselected
+    final BoxDecoration deco = widget.selected
+        ? const BoxDecoration()
+        : BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      color: _hover
+          ? Colors.white.withValues(alpha: 0.14)
+          : Colors.transparent,
+      border: Border.all(
+          color:
+          Colors.black.withValues(alpha: _hover ? 0.06 : 0.03)),
+      boxShadow: _hover
+          ? const [
+        BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, 2))
+      ]
+          : const [],
+    );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        decoration: deco,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap();
+            },
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 120),
+              scale:
+              widget.selected ? 1.0 : (_hover ? 1.02 : 1.0),
+              child: SizedBox(
+                height: double.infinity,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ScaleTransition(
+                        scale: Tween(begin: 1.0, end: 1.08).animate(
+                          CurvedAnimation(
+                              parent: _c,
+                              curve: Curves.easeOutBack),
+                        ),
+                        child:
+                        Icon(widget.icon, size: 20, color: fg),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedDefaultTextStyle(
+                        duration:
+                        const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        style: TextStyle(
+                          color: fg,
+                          fontWeight: widget.selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          height: 1.0,
+                        ),
+                        child: Text(widget.label),
+                      ),
+                      if (widget.trailingBadge != null) ...[
+                        const SizedBox(width: 8),
+                        widget.trailingBadge!,
+                      ],
+                    ],
                   ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  final int count;
+  const _CountBadge({required this.count});
+  String _fmt(int v) => v > 99 ? '99+' : '$v';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 2))
+        ],
+      ),
+      child: Text(
+        _fmt(count),
+        style: const TextStyle(
+          color: _kHeading,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+// Animated stats with icons (kept for future use)
+class _StatsAndProgress extends StatelessWidget {
+  const _StatsAndProgress();
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+
+    Widget content;
+    if (loading || d == null) {
+      content = LayoutBuilder(builder: (ctx, c) {
+        final isWide = c.maxWidth > 600;
+        final placeholders = List.generate(
+          4,
+              (i) => Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i == 3 ? 0 : 14),
+              child: const _SkeletonBar(
+                  width: double.infinity, height: 90),
+            ),
+          ),
+        );
+        if (isWide) return Row(children: placeholders);
+        return Column(
+          children: List.generate(
+            4,
+                (i) => Padding(
+              padding:
+              EdgeInsets.only(bottom: i == 3 ? 0 : 14),
+              child: const SizedBox(
+                height: 90,
+                child: _SkeletonBar(
+                    width: double.infinity, height: 90),
+              ),
+            ),
+          ),
+        );
+      });
+    } else {
+      final tiles = [
+        _AnimatedStat(
+            icon: Icons.folder_open_outlined,
+            label: 'Projects',
+            value: d.assignedCount,
+            tint: _kIndigo),
+        _AnimatedStat(
+            icon: Icons.people_outline,
+            label: 'Clients',
+            value: d.distinctClients,
+            tint: _kTeal),
+        _AnimatedStat(
+            icon: Icons.attach_money,
+            label: 'Earnings',
+            value: d.totalBudgetCents ~/ 100,
+            currency: true,
+            tint: _kViolet),
+        _AnimatedStat(
+            icon: Icons.emoji_events_outlined,
+            label: 'Success',
+            value: d.successPercent,
+            suffix: '%',
+            tint: _kIndigo),
+      ];
+      content = LayoutBuilder(builder: (ctx, c) {
+        final isWide = c.maxWidth > 600;
+        if (isWide) {
+          final rowChildren = <Widget>[];
+          for (var i = 0; i < tiles.length; i++) {
+            rowChildren.add(Expanded(child: tiles[i]));
+            if (i != tiles.length - 1) {
+              rowChildren.add(const SizedBox(width: 14));
+            }
+          }
+          return Row(children: rowChildren);
+        }
+        final col = <Widget>[];
+        for (var i = 0; i < tiles.length; i++) {
+          col.add(tiles[i]);
+          if (i != tiles.length - 1) col.add(const SizedBox(height: 14));
+        }
+        return Column(children: col);
+      });
+    }
+
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Performance Overview',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: _kHeading)),
+            const SizedBox(height: 16),
+            content
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowingAvatar extends StatelessWidget {
+  final bool loading;
+  const _GlowingAvatar({required this.loading});
+  @override
+  Widget build(BuildContext context) {
+    return Stack(alignment: Alignment.center, children: [
+      AnimatedContainer(
+          duration: const Duration(milliseconds: 600),
+          width: 120,
+          height: 120,
+          decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(colors: [
+                _kTeal,
+                _kIndigo,
+                _kViolet,
+                _kTeal
+              ], stops: [
+                0,
+                .33,
+                .66,
+                1
+              ]),
+              boxShadow: [
+                BoxShadow(
+                    color: Color(0x3300C2A8),
+                    blurRadius: 30,
+                    offset: Offset(0, 8))
+              ])),
+      Container(
+          width: 108,
+          height: 108,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              color: _kTeal.withValues(alpha: .15)),
+          child: loading
+              ? const Center(
+              child: CircularProgressIndicator(strokeWidth: 3))
+              : const Icon(Icons.person,
+              size: 48, color: Colors.white))
+    ]);
+  }
+}
+
+class _AnimatedStarRating extends StatefulWidget {
+  final double rating;
+  const _AnimatedStarRating({required this.rating});
+  @override
+  State<_AnimatedStarRating> createState() =>
+      _AnimatedStarRatingState();
+}
+
+class _AnimatedStarRatingState extends State<_AnimatedStarRating>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))
+      ..forward();
   }
 
-  InputDecoration _fieldDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.white38),
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final full = widget.rating.floor();
+    final half = (widget.rating - full) >= 0.25 &&
+        (widget.rating - full) < 0.75;
+    return Row(
+      children: List.generate(5, (i) {
+        IconData ic;
+        if (i < full) {
+          ic = Icons.star;
+        } else if (i == full && half) {
+          ic = Icons.star_half;
+        } else {
+          ic = Icons.star_outline;
+        }
+        return ScaleTransition(
+          scale: CurvedAnimation(
+              parent: _c,
+              curve:
+              Interval(i / 5, 1, curve: Curves.easeOutBack)),
+          child: Icon(ic, color: Colors.amber, size: 22),
+        );
+      }),
+    );
+  }
+}
+
+// Animated stat tile
+class _AnimatedStat extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final int value;
+  final String? suffix;
+  final String? prefix;
+  final bool currency;
+  final Color tint;
+  const _AnimatedStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.suffix,
+    this.prefix,
+    this.currency = false,
+    required this.tint,
+  });
+  @override
+  State<_AnimatedStat> createState() => _AnimatedStatState();
+}
+
+class _AnimatedStatState extends State<_AnimatedStat>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl;
+  late final Animation<double> _anim;
+  @override
+  void initState() {
+    super.initState();
+    _ctl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1100));
+    _anim =
+        CurvedAnimation(parent: _ctl, curve: Curves.easeOutCubic);
+    _ctl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  String _format(int v) {
+    if (widget.currency) {
+      if (v >= 1000) {
+        return '\$' + (v / 1000).toStringAsFixed(1) + 'k';
+      }
+      return '\$' + v.toString();
+    }
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = _isDark(context);
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (ctx, _) {
+        final val = (widget.value * _anim.value)
+            .clamp(0, widget.value)
+            .round();
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: widget.tint
+                .withValues(alpha: isDark ? 0.22 : 0.08),
+            border: Border.all(
+              color: Colors.white
+                  .withValues(alpha: isDark ? 0.18 : 0.38),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      widget.tint,
+                      widget.tint.withValues(alpha: 0.4)
+                    ],
+                  ),
+                ),
+                child: Icon(widget.icon,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${widget.prefix ?? ''}${_format(val)}${widget.suffix ?? ''}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(
+                          color: _kHeading,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.label,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                          color: _kMuted,
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(
+                      value: (val / widget.value).clamp(0, 1),
+                      minHeight: 4,
+                      backgroundColor:
+                      widget.tint.withValues(alpha: 0.15),
+                      valueColor:
+                      AlwaysStoppedAnimation(widget.tint),
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------- ABOUT / CONTACT / ACTIVITY / ACTIONS ----------
+class _AboutSection extends StatelessWidget {
+  const _AboutSection();
+  @override
+  Widget build(BuildContext context) {
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('About',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(
+                    color: _kHeading,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(
+              'Passionate freelancer building performant apps with delightful UX.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: _kBody),
+            ),
+          ],
+        ),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.white),
+    );
+  }
+}
+
+/// ------------------------------------------------------------
+/// CONTACT (Backend): Editable links fetched from API
+/// ------------------------------------------------------------
+class _ContactSectionRemote extends StatefulWidget {
+  const _ContactSectionRemote();
+  @override
+  State<_ContactSectionRemote> createState() =>
+      _ContactSectionRemoteState();
+}
+
+class _ContactSectionRemoteState extends State<_ContactSectionRemote> {
+  List<ContactLinkDto> _links = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLinks();
+  }
+
+  Future<void> _loadLinks() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final user = SessionService.instance.user;
+      if (user == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Not signed in';
+        });
+        return;
+      }
+      _links = await ContactApi().listLinks(user.id);
+      setState(() => _loading = false);
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = 'Failed to load links';
+      });
+    }
+  }
+
+  Future<void> _showLinkDialog({ContactLinkDto? existing}) async {
+    final labelCtrl =
+    TextEditingController(text: existing?.label ?? '');
+    final urlCtrl =
+    TextEditingController(text: existing?.url ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    IconData _pickIcon(String url, String label) {
+      final l = label.toLowerCase();
+      final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
+      if (host.contains('linkedin') || l.contains('linkedin')) {
+        return Icons.work_outline;
+      }
+      if (host.contains('github') || l.contains('github')) {
+        return Icons.code;
+      }
+      if (host.contains('twitter') ||
+          host.contains('x.com') ||
+          l.contains('twitter')) return Icons.alternate_email;
+      if (host.contains('youtube')) return Icons.ondemand_video;
+      if (host.contains('instagram')) return Icons.camera_alt_outlined;
+      if (host.contains('facebook')) return Icons.facebook;
+      if (host.contains('t.me') || host.contains('telegram')) {
+        return Icons.send_outlined;
+      }
+      return Icons.link;
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(existing == null ? 'Add link' : 'Edit link'),
+        content: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(
+              controller: labelCtrl,
+              decoration:
+              const InputDecoration(labelText: 'Label'),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Required'
+                  : null,
+            ),
+            TextFormField(
+              controller: urlCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'URL (https://...)'),
+              validator: (v) {
+                final uri =
+                v != null ? Uri.tryParse(v.trim()) : null;
+                final ok = uri != null &&
+                    (uri.scheme == 'http' ||
+                        uri.scheme == 'https') &&
+                    uri.host.isNotEmpty;
+                return ok ? null : 'Enter a valid URL';
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Text('Preview icon:'),
+              const SizedBox(width: 8),
+              ValueListenableBuilder(
+                valueListenable: urlCtrl,
+                builder: (_, __, ___) =>
+                    Icon(_pickIcon(urlCtrl.text, labelCtrl.text)),
+              )
+            ])
+          ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                final userId =
+                    SessionService.instance.user?.id;
+                if (userId == null) {
+                  throw Exception('Not signed in');
+                }
+                if (existing == null) {
+                  await ContactApi().createLink(
+                    userId: userId,
+                    label: labelCtrl.text.trim(),
+                    url: urlCtrl.text.trim(),
+                  );
+                } else {
+                  await ContactApi().updateLink(
+                    existing.id,
+                    label: labelCtrl.text.trim(),
+                    url: urlCtrl.text.trim(),
+                  );
+                }
+                Navigator.pop(context, true);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Save failed')),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.redAccent),
+    );
+
+    if (saved == true) {
+      await _loadLinks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(ContactLinkDto link) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete link?'),
+        content: Text('Remove "${link.label}"?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
+        ],
       ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.redAccent),
+    );
+    if (ok == true) {
+      try {
+        await ContactApi().deleteLink(link.id);
+        await _loadLinks();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Deleted')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Delete failed')));
+        }
+      }
+    }
+  }
+
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri,
+        mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open')));
+    }
+  }
+
+  IconData _iconFor(ContactLinkDto l) {
+    final host = Uri.tryParse(l.url)?.host.toLowerCase() ?? '';
+    final label = l.label.toLowerCase();
+    if (host.contains('linkedin') || label.contains('linkedin')) {
+      return Icons.work_outline;
+    }
+    if (host.contains('github') || label.contains('github')) {
+      return Icons.code;
+    }
+    if (host.contains('twitter') ||
+        host.contains('x.com') ||
+        label.contains('twitter')) {
+      return Icons.alternate_email;
+    }
+    if (host.contains('youtube')) return Icons.ondemand_video;
+    if (host.contains('instagram')) return Icons.camera_alt_outlined;
+    if (host.contains('facebook')) return Icons.facebook;
+    if (host.contains('t.me') || host.contains('telegram')) {
+      return Icons.send_outlined;
+    }
+    return Icons.link;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final email =
+        SessionService.instance.user?.email ?? 'user@example.com';
+
+    Widget content;
+    if (_loading) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _SkeletonBar(width: 160, height: 20),
+          SizedBox(height: 12),
+          _SkeletonBar(width: double.infinity, height: 36),
+        ],
+      );
+    } else if (_error != null) {
+      content = Row(
+        children: [
+          Expanded(
+              child: Text(_error!,
+                  style:
+                  const TextStyle(color: Colors.redAccent))),
+          TextButton(onPressed: _loadLinks, child: const Text('Retry')),
+        ],
+      );
+    } else {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Contact',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(
+                      color: _kHeading,
+                      fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Tooltip(
+                message: 'Add link',
+                child: ElevatedButton.icon(
+                  onPressed: () => _showLinkDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add link'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ClickableRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: email,
+            onTap: () => _openLink('mailto:$email'),
+          ),
+          const SizedBox(height: 8),
+          const _ContactRow(
+            icon: Icons.location_on_outlined,
+            label: 'Location',
+            value: 'Remote / Worldwide',
+          ),
+          const SizedBox(height: 14),
+          if (_links.isEmpty)
+            const Text('No links yet — Add link',
+                style: TextStyle(color: _kMuted))
+          else
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: _links.map<Widget>((link) {
+                return GestureDetector(
+                  onLongPress: () =>
+                      _showLinkDialog(existing: link),
+                  child: InputChip(
+                    label: Text(link.label),
+                    avatar: Icon(_iconFor(link)),
+                    onPressed: () => _openLink(link.url),
+                    onDeleted: () => _confirmDelete(link),
+                    deleteIcon: const Icon(Icons.delete_outline),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      );
+    }
+
+    return HoverScale(
+      child: GlassCard(child: content),
+    );
+  }
+}
+
+// ---------- Recent Activity ----------
+class _RecentActivitySection extends StatelessWidget {
+  const _RecentActivitySection();
+  @override
+  Widget build(BuildContext context) {
+    final activities = [
+      'Applied to Mobile MVP',
+      'Submitted proposal for Dashboard Revamp',
+      'Updated portfolio with Travel App UI',
+      'Received feedback from Acme Corp',
+    ];
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Recent Activity',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(
+                        color: _kHeading,
+                        fontWeight: FontWeight.w600)),
+                TextButton(onPressed: () {}, child: const Text('View all')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final a in activities)
+              Padding(
+                padding:
+                const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bolt_outlined,
+                        size: 18, color: _kViolet),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(a,
+                          style: const TextStyle(color: _kBody)),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
-      fillColor: Colors.white.withOpacity(.05),
-      filled: true,
+    );
+  }
+}
+
+// ------------------ RICH, SEGMENTED PORTFOLIO SECTION ------------------
+class _PortfolioSection extends StatefulWidget {
+  const _PortfolioSection();
+  @override
+  State<_PortfolioSection> createState() => _PortfolioSectionState();
+}
+
+class _PortfolioSectionState extends State<_PortfolioSection> {
+  // 0: Images, 1: Videos, 2: Documents
+  int _tabIndex = 0;
+  bool _loading = true;
+  bool _uploading = false;
+  String? _uploadError;
+  List<HomePortfolioDto> _items = [];
+  final List<String> _mediaTypes = ['IMAGE', 'VIDEO', 'DOCUMENT'];
+
+  int? _lastUserId; // so we refetch when HomeData becomes available
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final d = HomeData.of(context).data;
+    final uid = d?.userId;
+    if (uid != null && uid != _lastUserId) {
+      _lastUserId = uid;
+      _fetchItems(); // refetch once the DTO arrives after sign-in
+    }
+  }
+
+  void _fetchItems() async {
+    setState(() {
+      _loading = true;
+    });
+    final home = HomeData.of(context);
+    final d = home.data;
+    if (d == null) {
+      setState(() {
+        _items = [];
+        _loading = false;
+      });
+      return;
+    }
+    try {
+      final items = await HomeApi().getPortfolioItems(d.userId,
+          mediaType: _mediaTypes[_tabIndex]);
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _items = [];
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadFile() async {
+    setState(() {
+      _uploading = true;
+      _uploadError = null;
+    });
+    try {
+      FileType fileType;
+      List<String>? allowedExtensions;
+      String mediaType = _mediaTypes[_tabIndex];
+      switch (mediaType) {
+        case 'IMAGE':
+          fileType = FileType.image;
+          allowedExtensions = null;
+          break;
+        case 'VIDEO':
+          fileType = FileType.video;
+          allowedExtensions = null;
+          break;
+        case 'DOCUMENT':
+          fileType = FileType.custom;
+          allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx'];
+          break;
+        default:
+          fileType = FileType.any;
+          allowedExtensions = null;
+      }
+      final result = fileType == FileType.custom
+          ? await FilePicker.platform.pickFiles(
+          type: fileType, allowedExtensions: allowedExtensions)
+          : await FilePicker.platform.pickFiles(type: fileType);
+      if (result == null || result.files.isEmpty) {
+        setState(() {
+          _uploading = false;
+        });
+        return;
+      }
+      final fileName = result.files.single.name;
+      final user = HomeData.of(context).data;
+      if (user == null) throw Exception('User not loaded');
+      // 1. Get presigned upload URL
+      final key =
+          '${mediaType.toLowerCase()}s/${user.userId}_${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      final presignedUrl = await S3Service.getPresignedUploadUrl(key);
+      // 2. Upload file to S3
+      if (kIsWeb) {
+        if (result.files.single.bytes == null) {
+          throw Exception('File bytes are null');
+        }
+        await S3Service.uploadBytesToS3(
+            presignedUrl, result.files.single.bytes!);
+      } else {
+        final file = File(result.files.single.path!);
+        await S3Service.uploadFileToS3(presignedUrl, file);
+      }
+      // 3. Register portfolio item in backend (send only metadata)
+      final fileUrl = EnvConfig.s3FileUrl(key);
+      final uri = Uri.parse(
+          '${EnvConfig.apiBaseUrl}/api/portfolio-items/upload');
+      final Map<String, String> fields = {
+        'freelancerId': user.userId.toString(),
+        'title': fileName,
+        'mediaType': mediaType,
+        'fileUrl': fileUrl,
+      };
+      if (result.files.single.size != null) {
+        fields['fileSize'] = result.files.single.size.toString();
+      }
+      final response = await http.post(uri, body: fields);
+      if (response.statusCode != 200) {
+        throw Exception('Failed to register portfolio item');
+      }
+      setState(() {
+        _uploading = false;
+      });
+      _fetchItems();
+    } catch (e) {
+      setState(() {
+        _uploading = false;
+        _uploadError = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget _segmentedTabs() {
+      final labels = const ['Images', 'Videos', 'Documents'];
+      final gradients = const [
+        [_kIndigo, _kViolet],
+        [Color(0xFF0EA5E9), _kViolet],
+        [Color(0xFF22C55E), _kIndigo],
+      ];
+
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: Colors.white.withValues(alpha: 0.9),
+              width: 1),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 8,
+                offset: Offset(0, 2)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final selected = i == _tabIndex;
+            return Padding(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 4),
+              child: Material(
+                color: Colors.transparent,
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: selected
+                        ? LinearGradient(
+                      colors: gradients[i],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                        : null,
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      if (_tabIndex != i) {
+                        setState(() => _tabIndex = i);
+                        _fetchItems();
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            labels[i],
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color:
+                              selected ? Colors.white : _kBody,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? Colors.white
+                                  : Colors.white
+                                  .withValues(alpha: 0.85),
+                              borderRadius:
+                              BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              selected
+                                  ? _items.length.toString()
+                                  : '',
+                              style: const TextStyle(
+                                color: _kHeading,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+    }
+
+    Widget _grid(List<HomePortfolioDto> list) {
+      return LayoutBuilder(builder: (ctx, c) {
+        final cols = c.maxWidth > 1100
+            ? 4
+            : c.maxWidth > 820
+            ? 3
+            : 2;
+        const gap = 16.0;
+        final w = (c.maxWidth - (cols - 1) * gap) / cols;
+
+        final tiles = <Widget>[];
+        tiles.addAll(list.map((pi) {
+          return SizedBox(
+            width: w,
+            child: _MediaPortfolioCard(item: pi),
+          );
+        }));
+
+        while (tiles.length < cols * 2) {
+          tiles.add(
+            SizedBox(
+              width: w,
+              child: _EmptyPortfolioCard(
+                onTap: () {
+                  if (!_uploading) _pickAndUploadFile(); // respects current tab
+                },
+              ),
+            ),
+          );
+        }
+
+        return Wrap(spacing: gap, runSpacing: gap, children: tiles);
+      });
+    }
+
+    Widget _tabBody() {
+      if (_loading) {
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: List.generate(6, (i) => const SizedBox(width: 160, height: 120, child: _Shimmer())),
+        );
+      }
+      if (_items.isEmpty) {
+        final icons = [Icons.image_outlined, Icons.play_circle_outline, Icons.description_outlined];
+        final subtitles = [
+          'No images yet. Click “Add Project”.',
+          'No videos yet. Click “Add Project”.',
+          'No documents yet. Click “Add Project”.',
+        ];
+        final titles = ['Images', 'Videos', 'Documents'];
+        return _EmptyState(
+          icon: icons[_tabIndex],
+          title: titles[_tabIndex],
+          subtitle: subtitles[_tabIndex],
+        );
+      }
+      return _grid(_items);
+    }
+
+    return HoverScale(
+      child: GlassCard(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(
+                  'Portfolio',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700, color: _kHeading),
+                ),
+                const Spacer(),
+                Tooltip(
+                  message: 'Add Project',
+                  child: _LargeAddProjectButton(
+                    onTap: () {
+                      if (!_uploading) {
+                        _pickAndUploadFile();
+                      }
+                    },
+                  ),
+                ),
+              ]),
+              if (_uploading) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
+              ],
+              if (_uploadError != null) ...[
+                const SizedBox(height: 10),
+                Text(_uploadError!, style: const TextStyle(color: Colors.red)),
+              ],
+              const SizedBox(height: 14),
+              _segmentedTabs(),
+              const SizedBox(height: 16),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: KeyedSubtree(
+                  key: ValueKey(_tabIndex),
+                  child: _tabBody(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _MediaKind { image, video, document }
+
+class _MediaPortfolioCard extends StatefulWidget {
+  final HomePortfolioDto item;
+  const _MediaPortfolioCard({required this.item});
+
+  @override
+  State<_MediaPortfolioCard> createState() => _MediaPortfolioCardState();
+}
+
+class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
+    with SingleTickerProviderStateMixin {
+  bool _hover = false;
+  bool _previewErrorShown = false;
+  bool _mediaLoaded = false;
+
+  late final AnimationController _shineCtrl =
+  AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))
+    ..repeat();
+
+  _MediaKind get _kind {
+    final t = (widget.item.mediaType).toUpperCase();
+    if (t == 'VIDEO') return _MediaKind.video;
+    if (t == 'DOCUMENT') return _MediaKind.document;
+    return _MediaKind.image;
+  }
+
+  List<Color> get _grad {
+    switch (_kind) {
+      case _MediaKind.video:
+        return const [Color(0xFF0EA5E9), Color(0xFF7C3AED)];
+      case _MediaKind.document:
+        return const [Color(0xFF22C55E), Color(0xFF3B82F6)];
+      case _MediaKind.image:
+      default:
+        return const [Color(0xFF3B82F6), Color(0xFF7C3AED)];
+    }
+  }
+
+  List<Color> get _docGrad {
+    final mt = (widget.item.mimeType ?? '').toLowerCase();
+    final ext = _extFromUrl(widget.item.fileUrl);
+    if (mt.contains('pdf') || ext == 'pdf') return const [Color(0xFFE11D48), Color(0xFFFB7185)];
+    if (mt.contains('sheet') || ext == 'xls' || ext == 'xlsx') return const [Color(0xFF16A34A), Color(0xFF22C55E)];
+    if (mt.contains('word') || ext == 'doc' || ext == 'docx') return const [Color(0xFF2563EB), Color(0xFF60A5FA)];
+    if (mt.contains('text') || ext == 'txt') return const [Color(0xFF64748B), Color(0xFF94A3B8)];
+    return const [Color(0xFF64748B), Color(0xFF94A3B8)];
+  }
+
+  IconData get _docIcon {
+    final mt = (widget.item.mimeType ?? '').toLowerCase();
+    final ext = _extFromUrl(widget.item.fileUrl);
+    if (mt.contains('pdf') || ext == 'pdf') return Icons.picture_as_pdf_rounded;
+    if (mt.contains('sheet') || ext == 'xls' || ext == 'xlsx') return Icons.table_chart_rounded;
+    if (mt.contains('word') || ext == 'doc' || ext == 'docx') return Icons.description_rounded;
+    if (mt.contains('text') || ext == 'txt') return Icons.article_rounded;
+    return Icons.insert_drive_file_rounded;
+  }
+
+  IconData get _kindIcon {
+    switch (_kind) {
+      case _MediaKind.video:
+        return Icons.play_circle_fill_rounded;
+      case _MediaKind.document:
+        return _docIcon;
+      case _MediaKind.image:
+      default:
+        return Icons.image_rounded;
+    }
+  }
+
+  String _extFromUrl(String url) {
+    final i = url.lastIndexOf('.');
+    if (i == -1) return '';
+    final q = url.indexOf('?', i);
+    final raw = q == -1 ? url.substring(i + 1) : url.substring(i + 1, q);
+    return raw.toLowerCase();
+  }
+
+  @override
+  void dispose() {
+    _shineCtrl.dispose();
+    super.dispose();
+  }
+
+  IconData get _typeChipIcon {
+    switch (_kind) {
+      case _MediaKind.video:
+        return Icons.play_circle_fill_rounded;
+      case _MediaKind.document:
+        return Icons.description_rounded;
+      case _MediaKind.image:
+      default:
+        return Icons.image_rounded;
+    }
+  }
+
+  void _openAccordingToType() async {
+    try {
+      switch (_kind) {
+        case _MediaKind.image:
+          await showDialog(
+            context: context,
+            barrierColor: Colors.black87,
+            builder: (_) => ImagePreviewDialog(item: widget.item),
+          );
+          break;
+        case _MediaKind.video:
+          await showDialog(
+            context: context,
+            barrierColor: Colors.black87,
+            builder: (_) => VideoPreviewDialog(item: widget.item),
+          );
+          break;
+        case _MediaKind.document:
+          await _openDocument(context, widget.item);
+          break;
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load preview')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(18);
+    final heroTag = 'portfolio_${widget.item.id}';
+
+    // Media layer
+    Widget mediaLayer;
+    final isDoc = _kind == _MediaKind.document;
+    final thumbEmpty = widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty;
+
+    if (isDoc && thumbEmpty) {
+      mediaLayer = Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: _docGrad,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+            child: Icon(_docIcon, size: 56, color: Colors.white.withValues(alpha: 0.95))),
+      );
+    } else {
+      final imageUrl = (widget.item.thumbnailUrl == null || widget.item.thumbnailUrl!.isEmpty)
+          ? widget.item.fileUrl
+          : widget.item.thumbnailUrl!;
+      mediaLayer = _SafeNetworkImage(
+        url: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: const _Shimmer(),
+        onLoaded: () {
+          if (!_mediaLoaded && mounted) {
+            setState(() => _mediaLoaded = true);
+          }
+        },
+        errorFallback: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDoc ? _docGrad : _grad,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Icon(_kindIcon, color: Colors.white70, size: 36),
+          ),
+        ),
+        onErrorOnce: () {
+          if (!_previewErrorShown && mounted) {
+            _previewErrorShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to load preview')),
+                );
+              }
+            });
+          }
+        },
+      );
+    }
+
+    // IMPORTANT: give the tile HEIGHT using AspectRatio so it renders
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            boxShadow: _hover
+                ? const [BoxShadow(color: Color(0x22000000), blurRadius: 20, offset: Offset(0, 10))]
+                : const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
+            gradient: LinearGradient(
+              colors: _grad.map((c) => c.withValues(alpha: 0.18)).toList(),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: borderRadius,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(child: Hero(tag: heroTag, child: mediaLayer)),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.05),
+                          Colors.black.withValues(alpha: 0.20),
+                          Colors.black.withValues(alpha: 0.45),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_kind == _MediaKind.video)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Icon(Icons.play_circle_fill_rounded, size: 56, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                if (!_mediaLoaded)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _shineCtrl,
+                        builder: (_, __) {
+                          final t = _shineCtrl.value;
+                          return Transform.translate(
+                            offset: Offset((t * 2 - 1) * 200, 0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.14),
+                                    Colors.white.withValues(alpha: 0.0),
+                                  ],
+                                  stops: const [0.35, 0.5, 0.65],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_typeChipIcon, size: 16, color: _kHeading),
+                        const SizedBox(width: 6),
+                        Text(
+                          _kind == _MediaKind.image
+                              ? 'Image'
+                              : _kind == _MediaKind.video
+                              ? 'Video'
+                              : 'Doc',
+                          style: const TextStyle(
+                            color: _kHeading,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 10,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.item.title.isEmpty ? 'Untitled' : widget.item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _ActionIcon(icon: Icons.open_in_new_rounded, onTap: _openAccordingToType),
+                      const SizedBox(width: 6),
+                      _ActionIcon(
+                        icon: _kind == _MediaKind.document
+                            ? Icons.download_rounded
+                            : Icons.fullscreen_rounded,
+                        onTap: _openAccordingToType,
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(onTap: _openAccordingToType),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// A safer Image.network with URL normalization and simple load/error hooks.
+class _SafeNetworkImage extends StatefulWidget {
+  final String url;
+  final BoxFit fit;
+  final Widget? placeholder;
+  final Widget? errorFallback;
+  final VoidCallback? onLoaded;
+  final VoidCallback? onErrorOnce;
+
+  const _SafeNetworkImage({
+    required this.url,
+    this.fit = BoxFit.cover,
+    this.placeholder,
+    this.errorFallback,
+    this.onLoaded,
+    this.onErrorOnce,
+  });
+
+  @override
+  State<_SafeNetworkImage> createState() => _SafeNetworkImageState();
+}
+
+class _SafeNetworkImageState extends State<_SafeNetworkImage> {
+  bool _erroredOnce = false;
+
+  String _normalize(String u) {
+    // Encode spaces and odd chars; force https on web if possible
+    String v = Uri.encodeFull(u);
+    if (kIsWeb && v.startsWith('http://')) {
+      v = v.replaceFirst('http://', 'https://');
+    }
+    return v;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final src = _normalize(widget.url);
+    return Image.network(
+      src,
+      fit: widget.fit,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      loadingBuilder: (ctx, child, loadingProgress) {
+        if (loadingProgress == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onLoaded?.call();
+          });
+          return child;
+        }
+        return widget.placeholder ?? const SizedBox.shrink();
+      },
+      errorBuilder: (ctx, err, stack) {
+        if (!_erroredOnce) {
+          _erroredOnce = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onErrorOnce?.call();
+          });
+        }
+        return widget.errorFallback ?? const SizedBox.shrink();
+      },
+    );
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _ActionIcon({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.9),
+        child: InkWell(
+          onTap: onTap,
+          child: const SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(Icons.circle, size: 0, color: Colors.transparent),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------- OTHER SECTIONS -----------------
+class _ActiveContracts extends StatelessWidget {
+  const _ActiveContracts();
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+    final active = (d?.recentAssignedJobs ?? [])
+        .where((j) => j.status == 'ASSIGNED')
+        .toList();
+
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SectionHeader(title: 'Active Contracts', actionLabel: 'View all'),
+            const SizedBox(height: 8),
+            if (loading)
+              ...List.generate(
+                2,
+                    (i) => Padding(
+                  padding: EdgeInsets.only(bottom: i == 1 ? 0 : 12),
+                  child: const _SkeletonBar(width: double.infinity, height: 64),
+                ),
+              )
+            else if (active.isEmpty)
+              const Text('No active contracts yet', style: TextStyle(color: _kMuted))
+            else
+              ...active.map(
+                    (j) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ContractTile(
+                    client: j.clientEmail ?? 'Client',
+                    role: j.title,
+                    progress: .5,
+                    due: '',
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Recommendations extends StatelessWidget {
+  const _Recommendations();
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final d = home.data;
+    final loading = home.loading;
+    final recs = d?.recommendedJobs ?? [];
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SectionHeader(title: 'Recommended for you', actionLabel: 'Refresh'),
+            const SizedBox(height: 8),
+            if (loading)
+              SizedBox(
+                height: 170,
+                child: Row(
+                  children: List.generate(
+                    3,
+                        (i) => Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: i == 2 ? 0 : 12),
+                        child: const _SkeletonBar(width: double.infinity, height: 170),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 170,
+                child: recs.isEmpty
+                    ? const Center(child: Text('No recommendations right now'))
+                    : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (c, i) {
+                    final r = recs[i];
+                    final budget = r.budgetCents / 100;
+                    return _RecCard(
+                      title: r.title,
+                      budget: '\$${budget.toStringAsFixed(0)}',
+                      tags: (d?.skillsCsv ?? '')
+                          .split(',')
+                          .where((s) => s.trim().isNotEmpty)
+                          .take(3)
+                          .toList(),
+                    );
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemCount: recs.length,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Section header used in multiple cards
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String actionLabel;
+  final VoidCallback? onAction;
+  const _SectionHeader({required this.title, required this.actionLabel, this.onAction});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700, color: _kHeading),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (actionLabel.isNotEmpty)
+          TextButton(
+            onPressed: onAction ?? () {},
+            child: Text(actionLabel),
+          ),
+      ],
+    );
+  }
+}
+
+// Mini schedule placeholder card
+class _ScheduleMini extends StatelessWidget {
+  const _ScheduleMini();
+  @override
+  Widget build(BuildContext context) {
+    final home = HomeData.of(context);
+    final loading = home.loading;
+    final upcoming = <String>['Daily stand-up 9:00 AM', 'Client sync 2:30 PM'];
+    return HoverScale(
+      child: GlassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader(title: 'Schedule', actionLabel: 'Open'),
+            const SizedBox(height: 8),
+            if (loading)
+              ...List.generate(
+                2,
+                    (i) => Padding(
+                  padding: EdgeInsets.only(bottom: i == 1 ? 0 : 10),
+                  child: const _SkeletonBar(width: double.infinity, height: 46),
+                ),
+              )
+            else if (upcoming.isEmpty)
+              const Text('No upcoming events', style: TextStyle(color: _kMuted))
+            else
+              ...upcoming.map(
+                    (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_note_outlined, size: 18, color: _kIndigo),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(e, style: const TextStyle(color: _kBody))),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddPortfolioFab extends StatelessWidget {
+  const _AddPortfolioFab();
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tap "Upload Portfolio" to add an item.')),
+        );
+      },
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+      label: Ink(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(colors: [_kViolet, _kIndigo]),
+          borderRadius: BorderRadius.all(Radius.circular(40)),
+          boxShadow: [
+            BoxShadow(color: Color(0x337C3AED), blurRadius: 16, offset: Offset(0, 6))
+          ],
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.add, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Upload Portfolio',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- PLACEHOLDER / SHARED WIDGETS ---
+class _GradientButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  const _GradientButton({super.key, required this.icon, required this.label, this.onPressed});
+  @override
+  Widget build(BuildContext context) =>
+      ElevatedButton.icon(onPressed: onPressed, icon: Icon(icon), label: Text(label));
+}
+
+class _OutlineSoftButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _OutlineSoftButton({super.key, required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) =>
+      OutlinedButton.icon(onPressed: () {}, icon: Icon(icon), label: Text(label));
+}
+
+class _SkeletonBar extends StatelessWidget {
+  final double width;
+  final double height;
+  const _SkeletonBar({super.key, required this.width, required this.height});
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: width, height: height, color: Colors.grey.shade300);
+}
+
+class _SkeletonRating extends StatelessWidget {
+  const _SkeletonRating({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      Row(children: List.generate(5, (i) => Icon(Icons.star, color: Colors.grey.shade300)));
+}
+
+class _LargeAddProjectButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _LargeAddProjectButton({super.key, required this.onTap});
+  @override
+  Widget build(BuildContext context) =>
+      ElevatedButton.icon(onPressed: onTap, icon: const Icon(Icons.add), label: const Text('Upload Portfolio'));
+}
+
+class _EmptyPortfolioCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EmptyPortfolioCard({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => AspectRatio(
+    aspectRatio: 4 / 3,
+    child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: const Center(child: Icon(Icons.add, size: 32)),
+      ),
+    ),
+  );
+}
+
+class _RecCard extends StatelessWidget {
+  final String title;
+  final String budget;
+  final List<String> tags;
+  const _RecCard({super.key, required this.title, required this.budget, required this.tags});
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 250,
+    child: Card(child: ListTile(title: Text(title), subtitle: Text(budget))),
+  );
+}
+
+class _ContractTile extends StatelessWidget {
+  final String client;
+  final String role;
+  final double progress;
+  final String due;
+  const _ContractTile(
+      {super.key, required this.client, required this.role, required this.progress, required this.due});
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    title: Text(role, style: const TextStyle(fontWeight: FontWeight.w600)),
+    subtitle: Text(client),
+    trailing: SizedBox(
+      width: 140,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(child: LinearProgressIndicator(value: progress)),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+    ),
+  );
+}
+
+class _Shimmer extends StatefulWidget {
+  const _Shimmer({super.key});
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+  AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat();
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(color: Colors.grey.shade200),
+              FractionallySizedBox(
+                widthFactor: 0.4,
+                alignment: Alignment((_c.value * 2) - 1, 0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: 0.7),
+                        Colors.transparent
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _EmptyState({required this.icon, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        color: Colors.white.withValues(alpha: 0.6),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: _kIndigo),
+          const SizedBox(height: 10),
+          Text('No $title',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: _kHeading)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: const TextStyle(color: _kMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _ContactRow({super.key, required this.icon, required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) =>
+      Row(children: [Icon(icon), const SizedBox(width: 8), Text('$label: $value')]);
+}
+
+class _ClickableRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  const _ClickableRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon),
+            const SizedBox(width: 8),
+            Text(
+              '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Flexible(
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  decoration: TextDecoration.underline,
+                  color: _kIndigo,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- STUBS / PREVIEWS ---
+class _ProfileOverview extends StatelessWidget {
+  const _ProfileOverview();
+  @override
+  Widget build(BuildContext context) {
+    final dto = HomeData.of(context).data;
+    return ProfilePreviewCard(
+      name: dto?.displayName ?? 'Your Name',
+      title: dto?.professionalTitle ?? 'Your Title',
+      bio: dto?.bio ?? 'Welcome to your freelancer dashboard!',
+      skills: (dto?.skillsCsv
+          ?.split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList() ??
+          ['Skill 1', 'Skill 2']),
+      imageUrl: dto?.imageUrl,
+    );
+  }
+}
+
+// ----------- ENHANCED HOVER SCALE & GLASS CARD -----------
+class HoverScale extends StatefulWidget {
+  final Widget child;
+  final double scale;
+  final Duration duration;
+  const HoverScale({
+    required this.child,
+    this.scale = 1.02,
+    this.duration = const Duration(milliseconds: 140),
+    super.key,
+  });
+
+  @override
+  State<HoverScale> createState() => _HoverScaleState();
+}
+
+class _HoverScaleState extends State<HoverScale> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? widget.scale : 1.0,
+        duration: widget.duration,
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  const GlassCard({required this.child, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.78),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x11000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+}
+
+// =================== PREVIEW DIALOGS + HELPERS ===================
+
+class ImagePreviewDialog extends StatelessWidget {
+  final HomePortfolioDto item;
+  const ImagePreviewDialog({super.key, required this.item});
+
+  Future<void> _openExternal() async {
+    final uri = Uri.tryParse(item.fileUrl);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tag = 'portfolio_${item.id}';
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      backgroundColor: Colors.black,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // AppBar row inside the dialog
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.title.isEmpty ? 'Image' : item.title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _openExternal,
+                  child: const Text('Open'),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: Hero(
+              tag: tag,
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  Uri.encodeFull(item.fileUrl.startsWith('http://') && kIsWeb
+                      ? item.fileUrl.replaceFirst('http://', 'https://')
+                      : item.fileUrl),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// Stateful VideoPreviewDialog using video_player + chewie
+class VideoPreviewDialog extends StatefulWidget {
+  final HomePortfolioDto item;
+  const VideoPreviewDialog({super.key, required this.item});
+
+  @override
+  State<VideoPreviewDialog> createState() => _VideoPreviewDialogState();
+}
+
+class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _initError = false;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    setState(() {
+      _initError = false;
+      _errorText = null;
+    });
+    try {
+      final vc = VideoPlayerController.networkUrl(Uri.parse(widget.item.fileUrl));
+      await vc.initialize();
+      final cc = ChewieController(
+        videoPlayerController: vc,
+        autoPlay: true,
+        looping: false,
+        allowPlaybackSpeedChanging: true,
+      );
+      setState(() {
+        _videoController = vc;
+        _chewieController = cc;
+      });
+    } catch (e) {
+      setState(() {
+        _initError = true;
+        _errorText = 'Unable to load video.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    // Dispose safely
+    try {
+      _chewieController?.dispose();
+    } catch (_) {}
+    try {
+      _videoController?.dispose();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.item.title.isEmpty ? 'Video' : widget.item.title;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      backgroundColor: Colors.black,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_initError)
+                  IconButton(
+                    tooltip: 'Retry',
+                    onPressed: _initVideo,
+                    icon: const Icon(Icons.refresh,
+                        color: Colors.white),
+                  ),
+                IconButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          if (_initError)
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  Text(_errorText ?? 'Error',
+                      style:
+                      const TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 12),
+                  const Icon(Icons.error_outline,
+                      size: 56, color: Colors.white54),
+                ],
+              ),
+            )
+          else if (_chewieController != null &&
+              _videoController != null &&
+              _videoController!.value.isInitialized)
+            AspectRatio(
+              aspectRatio: _videoController!.value.aspectRatio == 0
+                  ? 16 / 9
+                  : _videoController!.value.aspectRatio,
+              child: Chewie(controller: _chewieController!),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// Helper: download bytes (used for pdfx)
+Future<Uint8List> _downloadBytes(String url) async {
+  final res = await http.get(Uri.parse(url));
+  if (res.statusCode != 200) {
+    throw Exception('HTTP ${res.statusCode}');
+  }
+  return res.bodyBytes;
+}
+
+// PDF preview dialog for non-web PDF files
+class _PdfPreviewDialog extends StatefulWidget {
+  final String title;
+  final Uint8List bytes;
+  const _PdfPreviewDialog({required this.title, required this.bytes, super.key});
+
+  @override
+  State<_PdfPreviewDialog> createState() => _PdfPreviewDialogState();
+}
+
+class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
+  late PdfController _pdfController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfController = PdfController(
+      document: PdfDocument.openData(widget.bytes),
     );
   }
 
-  // add password strength helpers
-  double _strengthFor(String p){ if(p.isEmpty) return 0; int score=0; if(p.length>=8) score++; if(RegExp(r'[a-z]').hasMatch(p)) score++; if(RegExp(r'[A-Z]').hasMatch(p)) score++; if(RegExp(r'[0-9]').hasMatch(p)) score++; if(RegExp(r'[^A-Za-z0-9]').hasMatch(p)) score++; return score/5.0; }
-  String _strengthLabel(double s){ if(s>=0.9) return 'Very strong'; if(s>=0.75) return 'Strong'; if(s>=0.5) return 'Medium'; if(s>=0.3) return 'Weak'; return 'Very weak'; }
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.title.isEmpty ? 'Document' : widget.title;
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      backgroundColor: Colors.black,
+      child: Column(
+        children: [
+          // AppBar-like row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: PdfView(
+              controller: _pdfController,
+              scrollDirection: Axis.vertical,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
 }
+
+// Document opener with pdfx in-app preview for PDFs (non-web)
+Future<void> _openDocument(BuildContext context, HomePortfolioDto item) async {
+  try {
+    final url = item.fileUrl;
+    final isPdf = (item.mimeType?.toLowerCase().contains('pdf') ?? false) ||
+        url.toLowerCase().endsWith('.pdf');
+
+    if (!kIsWeb && isPdf) {
+      // In-app preview using pdfx
+      final bytes = await _downloadBytes(url);
+      await showDialog(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (_) => _PdfPreviewDialog(title: item.title, bytes: bytes),
+      );
+      return;
+    }
+
+    // On web OR non-PDF -> launch externally
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: kIsWeb ? LaunchMode.externalApplication : LaunchMode.externalApplication);
+      return;
+    }
+
+    // Fall-through error
+    throw Exception('Cannot open URL');
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open document')),
+      );
+    }
+  }
+}
+
+
+// ---------- GMW: Inline Posts Feature ----------
+// This section adds a simple composer + feed similar to Instagram.
+// It's intentionally lightweight and self-contained so you can drop it into this file.
+
+class _GmwUser {
+  final String id;
+  final String name;
+  final String avatarUrl;
+  bool followed;
+  _GmwUser({required this.id, required this.name, required this.avatarUrl, this.followed = false});
+}
+
+class _GmwMedia {
+  final String url;
+  final String type;
+  _GmwMedia({required this.url, this.type = 'image'});
+}
+
+class _GmwPost {
+  String id;
+  final _GmwUser author;
+  String content;
+  List<_GmwMedia> media;
+  DateTime createdAt;
+  int likeCount;
+  bool liked;
+  _GmwPost({
+    required this.id,
+    required this.author,
+    this.content = '',
+    this.media = const [],
+    DateTime? createdAt,
+    this.likeCount = 0,
+    this.liked = false,
+  }) : createdAt = createdAt ?? DateTime.now();
+}
+
+class _GmwMockService {
+  final List<_GmwPost> _posts = [];
+  final Map<String, _GmwUser> _users = {};
+  _GmwMockService() {
+    final u1 = _GmwUser(id: 'u1', name: 'Satya Varma', avatarUrl: 'https://i.pravatar.cc/150?img=3');
+    final u2 = _GmwUser(id: 'u2', name: 'Maya', avatarUrl: 'https://i.pravatar.cc/150?img=12');
+    _users[u1.id] = u1;
+    _users[u2.id] = u2;
+    _posts.addAll([
+      _GmwPost(id: 'p1', author: u2, content: 'Experimenting with a new color system for mobile.', likeCount: 3),
+      _GmwPost(id: 'p2', author: u1, content: 'Built a new feature today! Check the design.', media: [_GmwMedia(url: 'https://picsum.photos/800/400')], likeCount: 7),
+    ]);
+  }
+
+  Future<List<_GmwPost>> fetchFeed() async {
+    await Future.delayed(Duration(milliseconds: 350));
+    return List<_GmwPost>.from(_posts.reversed);
+  }
+
+  Future<_GmwPost> createPost({required String authorId, required String content, required List<_GmwMedia> media}) async {
+    await Future.delayed(Duration(milliseconds: 500));
+    final user = _users[authorId]!;
+    final post = _GmwPost(id: 'p${_posts.length + 1}', author: user, content: content, media: media, likeCount: 0);
+    _posts.add(post);
+    return post;
+  }
+
+  Future<_GmwPost> toggleLike(String postId) async {
+    await Future.delayed(Duration(milliseconds: 200));
+    final idx = _posts.indexWhere((p) => p.id == postId);
+    if (idx == -1) throw Exception('post not found');
+    final p = _posts[idx];
+    if (p.liked) {
+      p.liked = false;
+      p.likeCount = (p.likeCount - 1).clamp(0, 1 << 30);
+    } else {
+      p.liked = true;
+      p.likeCount = p.likeCount + 1;
+    }
+    return p;
+  }
+
+  Future<_GmwUser> toggleFollow(String userId) async {
+    await Future.delayed(Duration(milliseconds: 200));
+    final u = _users[userId]!;
+    u.followed = !u.followed;
+    return u;
+  }
+}
+
+class HomePostsSection extends StatefulWidget {
+  const HomePostsSection({Key? key}) : super(key: key);
+  @override
+  _HomePostsSectionState createState() => _HomePostsSectionState();
+}
+
+class _HomePostsSectionState extends State<HomePostsSection> {
+  final _GmwMockService _svc = _GmwMockService();
+  late _GmwUser _me;
+  List<_GmwPost> _posts = [];
+  bool _loading = true;
+  final TextEditingController _ctrl = TextEditingController();
+  final TextEditingController _imageUrlCtrl = TextEditingController();
+  List<_GmwMedia> _media = [];
+  bool _posting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _me = _GmwUser(id: 'u1', name: 'Satya Varma', avatarUrl: 'https://i.pravatar.cc/150?img=3');
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final p = await _svc.fetchFeed();
+    setState(() {
+      _posts = p;
+      _loading = false;
+    });
+  }
+
+  void _addImageUrl() {
+    final url = _imageUrlCtrl.text.trim();
+    if (url.isEmpty) return;
+    setState(() {
+      _media.add(_GmwMedia(url: url));
+      _imageUrlCtrl.clear();
+    });
+  }
+
+  Future<void> _submit() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty && _media.isEmpty) return;
+    setState(() => _posting = true);
+    final temp = _GmwPost(
+      id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+      author: _me,
+      content: text,
+      media: List.from(_media),
+      likeCount: 0,
+    );
+    setState(() { _posts.insert(0, temp); _ctrl.clear(); _media = []; });
+    try {
+      final created = await _svc.createPost(authorId: _me.id, content: text, media: temp.media);
+      setState(() {
+        final idx = _posts.indexWhere((pp) => pp.id == temp.id);
+        if (idx != -1) _posts[idx] = created;
+      });
+    } catch (e) {
+      setState(() => _posts.removeWhere((pp) => pp.id == temp.id));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post')));
+    } finally {
+      setState(() => _posting = false);
+    }
+  }
+
+  void _toggleLike(_GmwPost post) async {
+    setState(() {
+      post.liked = !post.liked;
+      post.likeCount += post.liked ? 1 : -1;
+      if (post.likeCount < 0) post.likeCount = 0;
+    });
+    try {
+      final updated = await _svc.toggleLike(post.id);
+      setState(() {
+        final idx = _posts.indexWhere((p) => p.id == post.id);
+        if (idx != -1) _posts[idx] = updated;
+      });
+    } catch (e) {
+      setState(() {
+        post.liked = !post.liked;
+        post.likeCount += post.liked ? 1 : -1;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to like')));
+    }
+  }
+
+  void _toggleFollow(_GmwUser user) async {
+    final old = user.followed;
+    setState(() => user.followed = !old);
+    try {
+      await _svc.toggleFollow(user.id);
+    } catch (e) {
+      setState(() => user.followed = old);
+    }
+  }
+
+  void _openComments(_GmwPost post) {
+    showModalBottomSheet(context: context, builder: (_) {
+      return Container(
+        height: 320,
+        padding: EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Text('Comments', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Expanded(child: Center(child: Text('Comments UI placeholder'))),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildComposer() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(backgroundImage: NetworkImage(_me.avatarUrl)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    decoration: InputDecoration(hintText: 'Share an update...', border: InputBorder.none),
+                    maxLines: null,
+                  ),
+                )
+              ],
+            ),
+            if (_media.isNotEmpty)
+              Container(
+                height: 90,
+                margin: EdgeInsets.only(top: 10),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _media.length,
+                  separatorBuilder: (_, __) => SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final m = _media[i];
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(m.url, width: 140, height: 90, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: GestureDetector(
+                            onTap: () { setState(() => _media.removeAt(i)); },
+                            child: CircleAvatar(radius: 12, child: Icon(Icons.close, size: 14)),
+                          ),
+                        )
+                      ],
+                    );
+                  },
+                ),
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _imageUrlCtrl,
+                    decoration: InputDecoration(hintText: 'Paste image URL and press +', border: InputBorder.none),
+                  ),
+                ),
+                IconButton(icon: Icon(Icons.add), onPressed: _addImageUrl)
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(onPressed: _posting ? null : _submit, child: Text(_posting ? 'Posting...' : 'Post'))
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostCard(_GmwPost post) {
+    return Card(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(backgroundImage: NetworkImage(post.author.avatarUrl)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(post.author.name, style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(_timeAgo(post.createdAt), style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              ]),
+            ),
+            TextButton(onPressed: () => _toggleFollow(post.author), child: Text(post.author.followed ? 'Following' : 'Follow'))
+          ]),
+          if (post.content.isNotEmpty) ...[ SizedBox(height: 8), Text(post.content) ],
+          if (post.media.isNotEmpty) ...[ SizedBox(height: 8), ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(post.media.first.url, height: 240, width: double.infinity, fit: BoxFit.cover)) ],
+          SizedBox(height: 8),
+          Row(children: [
+            IconButton(icon: Icon(post.liked ? Icons.favorite : Icons.favorite_border, color: post.liked ? Colors.red : null), onPressed: () => _toggleLike(post)),
+            Text('${post.likeCount}'),
+            SizedBox(width: 8),
+            IconButton(icon: Icon(Icons.comment), onPressed: () => _openComments(post)),
+            Spacer(),
+            IconButton(icon: Icon(Icons.share), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Share (mock)')))),
+          ])
+        ]),
+      ),
+    );
+  }
+
+  String _timeAgo(DateTime dt) {
+    final d = DateTime.now().difference(dt);
+    if (d.inSeconds < 60) return '\${d.inSeconds}s';
+    if (d.inMinutes < 60) return '\${d.inMinutes}m';
+    if (d.inHours < 24) return '\${d.inHours}h';
+    return '\${d.inDays}d';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildComposer(),
+        SizedBox(height: 12),
+        _loading ? Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator())) :
+        ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: _posts.length,
+          itemBuilder: (ctx, i) => _buildPostCard(_posts[i]),
+        )
+      ],
+    );
+  }
+}
+
+// ---------- End GMW Posts Feature ----------
