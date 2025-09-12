@@ -212,7 +212,9 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isDesktop = width >= _kDesktopBreakpoint;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -232,7 +234,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          if (!isMobile && _currentTab != _PrimaryTab.portfolio)
+          if (!isMobile && !isDesktop && _currentTab != _PrimaryTab.portfolio)
             Padding(
               padding:
               const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
@@ -330,7 +332,11 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                           crossAxisAlignment:
                           CrossAxisAlignment.stretch,
                           children: [
-                            _HeaderHero(isWide: isWide),
+                            _HeaderHero(
+                              isWide: isWide,
+                              newJobsCount: _newJobsCount,
+                              onApplyPressed: _onApplyPressed,
+                            ),
                             const SizedBox(height: 12),
 
                             if (isWide)
@@ -638,9 +644,18 @@ class _BgPainter extends CustomPainter {
 }
 
 // Header hero
+// Header hero
 class _HeaderHero extends StatelessWidget {
   final bool isWide;
-  const _HeaderHero({required this.isWide});
+  final int? newJobsCount;
+  final VoidCallback? onApplyPressed;
+
+  const _HeaderHero({
+    required this.isWide,
+    this.newJobsCount,
+    this.onApplyPressed,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -652,6 +667,19 @@ class _HeaderHero extends StatelessWidget {
         if (isWide)
           Row(
             children: [
+              // Apply for work CTA added here so it lines up with Edit Profile etc.
+              if (onApplyPressed != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: ApplyForWorkCta(
+                    initialCount: newJobsCount,
+                    onPressed: onApplyPressed!,
+                    dense: true,
+                    showLabel: true,
+                  ),
+                ),
+              ],
+
               _GradientButton(
                 icon: Icons.edit_outlined,
                 label: 'Edit Profile',
@@ -679,6 +707,7 @@ class _HeaderHero extends StatelessWidget {
     );
   }
 }
+
 
 /// ✅ NEW: Old-style profile card brought into the new page
 class _ProfileIdentityCard extends StatelessWidget {
