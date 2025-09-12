@@ -56,7 +56,9 @@ class _SocialStripState extends State<SocialStrip> {
         _pill('Following', _counts!.following, Icons.person_add_alt_1_outlined),
         const Spacer(),
         TextButton.icon(
-          onPressed: () => Navigator.of(context).pushNamed(SocialFeedScreen.route),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SocialFeedScreen()),
+          ),
           icon: const Icon(Icons.dynamic_feed_outlined),
           label: const Text('Open feed'),
         )

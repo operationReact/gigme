@@ -28,6 +28,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pdfx/pdfx.dart';
+import '../api/social_api.dart';
+import '../models/social_post.dart' show SocialCounts;
 
 // ✅ Social imports
 import '../sections/social_strip.dart';
@@ -710,9 +712,37 @@ class _HeaderHero extends StatelessWidget {
 
 
 /// ✅ NEW: Old-style profile card brought into the new page
-class _ProfileIdentityCard extends StatelessWidget {
+class _ProfileIdentityCard extends StatefulWidget {
   final VoidCallback? onOpenFeed;
   const _ProfileIdentityCard({this.onOpenFeed});
+
+  @override
+  State<_ProfileIdentityCard> createState() => _ProfileIdentityCardState();
+}
+
+class _ProfileIdentityCardState extends State<_ProfileIdentityCard> {
+  SocialCounts? _counts;
+  bool _loadingCounts = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeLoad();
+  }
+
+  Future<void> _maybeLoad() async {
+    final home = HomeData.of(context);
+    final uid = home.data?.userId;
+    if (uid == null || _counts != null || _loadingCounts) return;
+    setState(() => _loadingCounts = true);
+    try {
+      final c = await SocialApi.instance.getCounts(uid);
+      if (!mounted) return;
+      setState(() { _counts = c; _loadingCounts = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingCounts = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -722,14 +752,34 @@ class _ProfileIdentityCard extends StatelessWidget {
 
     final name = d?.displayName ?? 'Your Name';
     final title = d?.professionalTitle ?? 'Public Figure';
-    final bio =
-        d?.bio ?? 'Building robust apps with delightful UX.';
+    final bio = d?.bio ?? 'Building robust apps with delightful UX.';
     final avatarUrl = d?.imageUrl;
 
-    final posts = 0;
-    final followers = 0;
-    final following = 0;
-    final profileViews = 0;
+    final posts = _counts?.posts ?? 0;
+    final followers = _counts?.followers ?? 0;
+    final following = _counts?.following ?? 0;
+    final profileViews = 0; // not implemented yet
+
+    Widget metricsLayout(bool wide){
+      final pillsWide = [
+        Expanded(child: _MetricPill(count: posts, label: 'Posts', icon: Icons.article_outlined)),
+        const SizedBox(width: 8),
+        Expanded(child: _MetricPill(count: followers, label: 'Followers', icon: Icons.group_outlined)),
+        const SizedBox(width: 8),
+        Expanded(child: _MetricPill(count: following, label: 'Following', icon: Icons.person_add_alt_1_outlined)),
+        const SizedBox(width: 8),
+        Expanded(child: _MetricPill(count: profileViews, label: 'Profile views', icon: Icons.visibility_outlined)),
+      ];
+      final pillsWrap = [
+        _MetricPill(count: posts, label: 'Posts', icon: Icons.article_outlined),
+        _MetricPill(count: followers, label: 'Followers', icon: Icons.group_outlined),
+        _MetricPill(count: following, label: 'Following', icon: Icons.person_add_alt_1_outlined),
+        _MetricPill(count: profileViews, label: 'Profile views', icon: Icons.visibility_outlined),
+      ];
+      return wide
+        ? Row(mainAxisAlignment: MainAxisAlignment.start, children: pillsWide)
+        : Wrap(spacing: 10, runSpacing: 10, children: pillsWrap);
+    }
 
     return HoverScale(
       child: GlassCard(
@@ -745,118 +795,29 @@ class _ProfileIdentityCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: _kHeading,
-                          )),
+                      Text(name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: _kHeading)),
                       const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Text(title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                color: _kMuted,
-                                fontWeight: FontWeight.w600,
-                              )),
+                      Row(children: [
+                        Text(title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _kMuted, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        const _TinyBadge(icon: Icons.verified, label: 'Pro'),
+                        const SizedBox(width: 6),
+                        const _TinyBadge(icon: Icons.star_border_rounded, label: 'Creator'),
+                        if (_loadingCounts) ...[
                           const SizedBox(width: 8),
-                          const _TinyBadge(
-                              icon: Icons.verified, label: 'Pro'),
-                          const SizedBox(width: 6),
-                          const _TinyBadge(
-                              icon: Icons.star_border_rounded,
-                              label: 'Creator'),
-                        ],
-                      ),
+                          const SizedBox(width:14,height:14,child: CircularProgressIndicator(strokeWidth:2)),
+                        ]
+                      ]),
                       const SizedBox(height: 8),
-                      Text(
-                        bio,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: _kBody),
-                      ),
+                      Text(bio, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: _kBody)),
                       const SizedBox(height: 12),
-
-                      // Adjusted metrics row to fit 4 metrics
-                      LayoutBuilder(
-                        builder: (ctx, c) {
-                          final isWide = c.maxWidth > 400;
-                          return isWide
-                              ? Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _MetricPill(
-                                    count: posts,
-                                    label: 'Posts',
-                                    icon: Icons.article_outlined),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _MetricPill(
-                                    count: followers,
-                                    label: 'Followers',
-                                    icon: Icons.group_outlined),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _MetricPill(
-                                    count: following,
-                                    label: 'Following',
-                                    icon: Icons.person_add_alt_1_outlined),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _MetricPill(
-                                    count: profileViews,
-                                    label: 'Profile views',
-                                    icon: Icons.visibility_outlined),
-                              ),
-                            ],
-                          )
-                              : Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              _MetricPill(
-                                  count: posts,
-                                  label: 'Posts',
-                                  icon: Icons.article_outlined),
-                              _MetricPill(
-                                  count: followers,
-                                  label: 'Followers',
-                                  icon: Icons.group_outlined),
-                              _MetricPill(
-                                  count: following,
-                                  label: 'Following',
-                                  icon: Icons.person_add_alt_1_outlined),
-                              _MetricPill(
-                                  count: profileViews,
-                                  label: 'Profile views',
-                                  icon: Icons.visibility_outlined),
-                            ],
-                          );
-                        },
-                      ),
-
+                      LayoutBuilder(builder: (ctx,c)=> metricsLayout(c.maxWidth>400)),
                       const SizedBox(height: 10),
                       TextButton.icon(
-                        onPressed: onOpenFeed,
-                        icon: const Icon(Icons.open_in_new_rounded,
-                            size: 18),
+                        onPressed: widget.onOpenFeed,
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
                         label: const Text('Open feed'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: _kIndigo,
-                          padding: EdgeInsets.zero,
-                        ),
+                        style: TextButton.styleFrom(foregroundColor: _kIndigo, padding: EdgeInsets.zero),
                       ),
                     ],
                   ),
@@ -2796,8 +2757,7 @@ class _MediaPortfolioCardState extends State<_MediaPortfolioCard>
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -3635,87 +3595,6 @@ class _VideoPreviewDialogState extends State<VideoPreviewDialog> {
   }
 }
 
-// Helper: download bytes (used for pdfx)
-Future<Uint8List> _downloadBytes(String url) async {
-  final res = await http.get(Uri.parse(url));
-  if (res.statusCode != 200) {
-    throw Exception('HTTP ${res.statusCode}');
-  }
-  return res.bodyBytes;
-}
-
-// PDF preview dialog for non-web PDF files
-class _PdfPreviewDialog extends StatefulWidget {
-  final String title;
-  final Uint8List bytes;
-  const _PdfPreviewDialog({required this.title, required this.bytes, super.key});
-
-  @override
-  State<_PdfPreviewDialog> createState() => _PdfPreviewDialogState();
-}
-
-class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
-  late PdfController _pdfController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pdfController = PdfController(
-      document: PdfDocument.openData(widget.bytes),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pdfController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title = widget.title.isEmpty ? 'Document' : widget.title;
-    return Dialog(
-      insetPadding: const EdgeInsets.all(16),
-      backgroundColor: Colors.black,
-      child: Column(
-        children: [
-          // AppBar-like row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close,
-                      color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: PdfView(
-              controller: _pdfController,
-              scrollDirection: Axis.vertical,
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}
-
 // Document opener with pdfx in-app preview for PDFs (non-web)
 Future<void> _openDocument(BuildContext context, HomePortfolioDto item) async {
   try {
@@ -4088,4 +3967,3 @@ class _HomePostsSectionState extends State<HomePostsSection> {
   }
 }
 
-// ---------- End GMW Posts Feature ----------

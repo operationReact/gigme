@@ -1,4 +1,36 @@
-import 'package:flutter/foundation.dart';
+class SocialMediaItem {
+  final String url;
+  final String mediaType; // IMAGE or VIDEO
+  final int? width;
+  final int? height;
+  final int? durationSeconds;
+  final String? thumbnailUrl;
+  const SocialMediaItem({
+    required this.url,
+    required this.mediaType,
+    this.width,
+    this.height,
+    this.durationSeconds,
+    this.thumbnailUrl,
+  });
+  factory SocialMediaItem.fromJson(Map<String,dynamic> j) => SocialMediaItem(
+    url: j['url'],
+    mediaType: j['mediaType'],
+    width: j['width'],
+    height: j['height'],
+    durationSeconds: j['durationSeconds'],
+    thumbnailUrl: j['thumbnailUrl'],
+  );
+  Map<String,dynamic> toJson()=>{
+    'url':url,
+    'mediaType':mediaType,
+    'width':width,
+    'height':height,
+    'durationSeconds':durationSeconds,
+    'thumbnailUrl':thumbnailUrl,
+  };
+  bool get isVideo => mediaType == 'VIDEO';
+}
 
 class SocialPost {
   final int id;
@@ -11,6 +43,7 @@ class SocialPost {
   final int commentCount;
   final bool likedByMe;
   final List<String> mediaUrls;
+  final List<SocialMediaItem> mediaItems;
 
   const SocialPost({
     required this.id,
@@ -23,6 +56,7 @@ class SocialPost {
     required this.commentCount,
     required this.likedByMe,
     required this.mediaUrls,
+    required this.mediaItems,
   });
 
   SocialPost copyWith({
@@ -40,6 +74,7 @@ class SocialPost {
       commentCount: commentCount,
       likedByMe: likedByMe ?? this.likedByMe,
       mediaUrls: mediaUrls,
+      mediaItems: mediaItems,
     );
   }
 }
@@ -49,6 +84,11 @@ class SocialCounts {
   final int followers;
   final int following;
   const SocialCounts({required this.posts, required this.followers, required this.following});
+  factory SocialCounts.fromJson(Map<String,dynamic> j)=> SocialCounts(
+    posts: (j['posts'] ?? 0) as int,
+    followers: (j['followers'] ?? 0) as int,
+    following: (j['following'] ?? 0) as int,
+  );
 }
 
 class CreatorSuggestion {

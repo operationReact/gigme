@@ -18,6 +18,7 @@ import 'widgets/background_video_single.dart';
 import 'services/preferences_service.dart';
 import 'services/session_service.dart';
 import 'screens/share_card_public.dart';
+import 'screens/social_feed.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
@@ -254,6 +255,7 @@ class _MyAppState extends State<MyApp> {
         ClientProfileScreen.route: (_) => const ClientProfileScreen(),
         ForgotPasswordPage.routeName: (_) => const ForgotPasswordPage(),
         ShareCardPublicPage.routeName: (_) => const ShareCardPublicPage(),
+        SocialFeedScreen.route: (_) => const SocialFeedScreen(),
       },
       home: _loaded ? LandingPage(onToggleTheme: _toggleTheme, darkMode: _darkMode) : const SizedBox.shrink(),
     );

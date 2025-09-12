@@ -826,3 +826,23 @@ Caches keys for 10 minutes
 Verifies RS256 JWTs and returns JWTClaimsSet; throws on invalid/expired/not-yet-valid tokens
 Reads region and poolId from Spring properties (cognito.region, cognito.userPoolId)
 Interceptor: Created com.gigmework.backend.config.JwtHandshakeInterceptor (HandshakeInterceptor)
+
+
+
+
+
+Creator feed backend + frontend wiring added.
+Key backend endpoints (Spring Boot): POST /api/feed/posts body: {authorId, content, media:[{url, mediaType, width,height,durationSeconds,thumbnailUrl}]} GET /api/feed/posts?page=0&size=10&viewerId=123 POST /api/feed/posts/{id}/like?userId=123 DELETE /api/feed/posts/{id}/like?userId=123
+Entities: Post, PostMedia, PostLike (+ repositories, PostService, FeedController). Flyway V3__feed_tables.sql added (enable Flyway in prod profile). S3 config + application.yml now support aws.s3.bucket / region.
+Frontend: Updated SocialPost model (mediaItems), SocialApi now calls real backend, PostComposer supports image/video pick + S3 presigned upload, SocialPostCard renders multiple images/videos and sends like with userId. Added media_upload_service.dart and uuid dependency.
+Environment variables needed (set for backend run): AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION (default us-east-1) AWS_S3_BUCKET (dev/prod buckets)
+Run locally: Backend: gradlew bootRun (ensure env vars set) Frontend: flutter pub get then flutter run
+Current gaps / suggested next steps (not yet implemented):
+Auth/security: endpoints currently unauthenticated—add JWT/Cognito guard or user context extraction (remove authorId/userId from request params).
+Validation: limit media count, size, and file type server-side.
+Video thumbnails + duration: generate via Lambda or Elastic Transcoder/MediaConvert; populate thumbnailUrl & durationSeconds.
+Pagination/performance: add keyset pagination and lightweight feed DTO (exclude unused fields).
+Caching: add ETag or Cache-Control for feed GET.
+Delete/edit post endpoints (not present).
+Rate limiting for post creation & likes (reuse RateLimiterService pattern).
+If you want, I can proceed with auth integration, deletion/edit endpoints, or video processing pipeline. Specify next focus.

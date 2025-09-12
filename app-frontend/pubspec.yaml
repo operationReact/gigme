@@ -47,6 +47,7 @@ dependencies:
   chewie: ^1.8.1
   pdfx: ^2.6.0
   qr_flutter: ^4.1.0
+  uuid: ^4.4.0
 
 dev_dependencies:
   flutter_test:

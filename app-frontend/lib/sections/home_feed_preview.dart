@@ -64,7 +64,9 @@ class _HomeFeedPreviewState extends State<HomeFeedPreview> {
         const Spacer(),
         IconButton(
           tooltip: 'Open full feed',
-          onPressed: () => Navigator.of(context).pushNamed(SocialFeedScreen.route),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SocialFeedScreen()),
+          ),
           icon: const Icon(Icons.open_in_new_rounded),
         )
       ],

@@ -12,7 +12,12 @@ spring:
       hibernate:
         format_sql: true
 
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:gigme-dev-bucket}
+    region: ${AWS_REGION:us-east-1}
 ---
+# Dev profile
 spring:
   config:
     activate:
@@ -42,8 +47,13 @@ app:
       enabled: false
 server:
   port: 8081  # dev profile port override
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:gigme-dev-bucket}
+    region: ${AWS_REGION:us-east-1}
 
 ---
+# Prod profile
 spring:
   config:
     activate:
@@ -70,3 +80,7 @@ app:
   reset:
     email:
       enabled: true
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:gigme-prod-bucket}
+    region: ${AWS_REGION:us-east-1}
