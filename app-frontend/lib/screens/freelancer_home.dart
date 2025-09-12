@@ -291,7 +291,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
             Align(
               alignment: Alignment.topCenter,
               child: Container(
-                height: 140,
+                height: 60,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -306,12 +306,12 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
               ),
             ),
             // ✅ watermark/logo overlay in the Stack
-            const Positioned(
+            /*const Positioned(
               top: 10,
               right: 16,
               child: IgnorePointer(child: _GmwLogo.compact()),
             ),
-
+*/
             SafeArea(
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
