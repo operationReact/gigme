@@ -49,12 +49,16 @@ public class SocialService {
         List<Long> ids = profiles.stream().map(p -> p.getUser().getId()).toList();
         Set<Long> following = viewerId == null ? Set.of() : followRepo.findByFollowerIdAndTargetIdIn(viewerId, ids)
                 .stream().map(f -> f.getTarget().getId()).collect(Collectors.toSet());
+        // follower counts
+        Map<Long, Long> followerCounts = followRepo.countFollowersForTargets(ids).stream()
+                .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
         return profiles.stream().map(p -> new CreatorSuggestionDto(
                 p.getUser().getId(),
                 p.getDisplayName(),
                 Optional.ofNullable(p.getProfessionalTitle()).orElse(""),
                 p.getImageUrl(),
-                following.contains(p.getUser().getId())
+                following.contains(p.getUser().getId()),
+                followerCounts.getOrDefault(p.getUser().getId(), 0L)
         )).toList();
     }
 
@@ -87,6 +91,6 @@ public class SocialService {
     }
 
     // DTOs
-    public record CreatorSuggestionDto(Long userId, String name, String title, String avatarUrl, boolean followedByMe){}
+    public record CreatorSuggestionDto(Long userId, String name, String title, String avatarUrl, boolean followedByMe, long followerCount){}
     public record SocialCountsDto(long posts, long followers, long following){}
 }

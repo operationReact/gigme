@@ -97,12 +97,14 @@ class CreatorSuggestion {
   final String title;
   final String? avatarUrl;
   final bool followedByMe;
+  final int followerCount; // new
   const CreatorSuggestion({
     required this.userId,
     required this.name,
     required this.title,
     required this.avatarUrl,
     required this.followedByMe,
+    this.followerCount = 0,
   });
 
   factory CreatorSuggestion.fromJson(Map<String,dynamic> j) => CreatorSuggestion(
@@ -111,5 +113,6 @@ class CreatorSuggestion {
     title: (j['title'] ?? j['professionalTitle'] ?? '') as String,
     avatarUrl: j['avatarUrl'] ?? j['imageUrl'],
     followedByMe: (j['followedByMe'] ?? j['following'] ?? j['isFollowing'] ?? false) as bool,
+    followerCount: (j['followerCount'] ?? j['followers'] ?? 0) as int,
   );
 }

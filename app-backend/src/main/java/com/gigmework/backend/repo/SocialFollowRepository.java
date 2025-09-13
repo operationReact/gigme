@@ -15,5 +15,7 @@ public interface SocialFollowRepository extends JpaRepository<SocialFollow, Long
 
     @Query("select sf from SocialFollow sf where sf.follower.id = :followerId and sf.target.id in :targetIds")
     List<SocialFollow> findByFollowerIdAndTargetIdIn(Long followerId, Collection<Long> targetIds);
-}
 
+    @Query("select sf.target.id as tid, count(sf.id) as cnt from SocialFollow sf where sf.target.id in :ids group by sf.target.id")
+    List<Object[]> countFollowersForTargets(Collection<Long> ids);
+}

@@ -67,6 +67,7 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
         title: x.title,
         avatarUrl: x.avatarUrl,
         followedByMe: follow,
+        followerCount: (x.followerCount + (follow ? 1 : -1)).clamp(0, 1 << 31),
       ) : x).toList();
     });
     try {
@@ -85,6 +86,7 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
           title: x.title,
           avatarUrl: x.avatarUrl,
           followedByMe: !follow,
+          followerCount: (x.followerCount + (!follow ? 1 : -1)).clamp(0, 1 << 31),
         ) : x).toList();
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,6 +156,11 @@ class _CreatorRow extends StatelessWidget {
   final VoidCallback onToggle;
   const _CreatorRow({required this.c, required this.onToggle});
 
+  String _fmt(int v) {
+    if (v >= 1000000) return (v / 1000000).toStringAsFixed(1) + 'M';
+    if (v >= 1000) return (v / 1000).toStringAsFixed(1) + 'k';
+    return v.toString();
+  }
   @override
   Widget build(BuildContext context) {
     final titleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600);
@@ -185,6 +192,7 @@ class _CreatorRow extends StatelessWidget {
                   ),
                   if (c.title.trim().isNotEmpty)
                     Text(c.title, style: titleStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(_fmt(c.followerCount) + ' followers', style: titleStyle),
                 ],
               ),
             ),
@@ -258,6 +266,117 @@ class _CreatorChip extends StatelessWidget {
       deleteIcon: Icon(c.followedByMe ? Icons.check : Icons.add),
       onDeleted: onTap,
       tooltip: c.followedByMe ? 'Unfollow' : 'Follow',
+    );
+  }
+}
+
+class _SkeletonSuggestionList extends StatefulWidget {
+  final bool compact;
+  final double maxHeight;
+  const _SkeletonSuggestionList({required this.compact, required this.maxHeight});
+  @override
+  State<_SkeletonSuggestionList> createState() => _SkeletonSuggestionListState();
+}
+
+class _SkeletonSuggestionListState extends State<_SkeletonSuggestionList> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.compact ? 5 : 7;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: items,
+        itemBuilder: (_, i) => _ShimmerRow(anim: _c),
+      ),
+    );
+  }
+}
+
+class _ShimmerRow extends StatelessWidget {
+  final Animation<double> anim;
+  const _ShimmerRow({required this.anim});
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: anim,
+      builder: (_, __) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.grey.shade300,
+                      Colors.grey.shade100,
+                      Colors.grey.shade300,
+                    ],
+                    stops: [0, (anim.value * .5) + .25, 1],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _bar(widthFactor: .6, anim: anim),
+                    const SizedBox(height: 6),
+                    _bar(widthFactor: .4, anim: anim),
+                    const SizedBox(height: 4),
+                    _bar(widthFactor: .3, anim: anim),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 88,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.grey.shade300,
+                      Colors.grey.shade100,
+                      Colors.grey.shade300,
+                    ],
+                    stops: [0, (anim.value * .5) + .25, 1],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  Widget _bar({required double widthFactor, required Animation<double> anim}) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 10,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          gradient: LinearGradient(
+            colors: [
+              Colors.grey.shade300,
+              Colors.grey.shade100,
+              Colors.grey.shade300,
+            ],
+            stops: [0, (anim.value * .5) + .25, 1],
+          ),
+        ),
+      ),
     );
   }
 }
