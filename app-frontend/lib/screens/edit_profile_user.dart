@@ -290,7 +290,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
       hintText: hint,
       prefixIcon: prefix,
       filled: true,
-      fillColor: cs.surfaceVariant.withOpacity(0.24),
+      fillColor: cs.surfaceContainerHighest.withOpacity(0.24),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cs.outlineVariant)),
       enabledBorder: OutlineInputBorder(
@@ -307,8 +307,15 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return WillPopScope(
-      onWillPop: _confirmDiscard,
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return; // route already popped (e.g., not dirty)
+        () async {
+          final ok = await _confirmDiscard();
+          if (ok && mounted) Navigator.of(context).pop();
+        }();
+      },
       child: Scaffold(
         bottomNavigationBar: SafeArea(
           top: false,
@@ -357,7 +364,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
         ),
         body: CustomScrollView(
           slivers: [
-            // ── Slim, pinned gradient header ────────────────────────────────
+            // ── Slim, pinned gradient header ────��───────────────────────────
             SliverAppBar(
               pinned: true,
               expandedHeight: 120,
@@ -575,7 +582,7 @@ class _ProfileUserPageState extends State<ProfileUserPage> {
                                     SizedBox(
                                       width: 110,
                                       child: DropdownButtonFormField<String>(
-                                        value: _currency,
+                                        initialValue: _currency,
                                         decoration: _decoration(context, 'Currency'),
                                         items: const [
                                           DropdownMenuItem(value: 'USD', child: Text('USD')),
@@ -770,7 +777,7 @@ class _HeaderCard extends StatelessWidget {
     InputDecoration dec(String label) => InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: cs.surfaceVariant.withOpacity(0.18),
+      fillColor: cs.surfaceContainerHighest.withOpacity(0.18),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: cs.outlineVariant)),
@@ -1024,7 +1031,7 @@ class _GmwMark extends StatelessWidget {
   }
 }
 
-/// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────��───────────────────────────────────────────────────
 /// Dynamic Links Editor
 class _ContactLinksEditor extends StatefulWidget {
   final List<ContactLink> links;

@@ -1,6 +1,7 @@
 // Reconstructed creator search & follow widget.
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:gigmework/sections/creator_profile_view.dart';
 import '../api/social_api.dart';
 import '../models/social_post.dart';
 
@@ -138,6 +139,13 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
                 return _CreatorRow(
                   c: c,
                   onToggle: () => _toggle(c),
+                  viewerId: widget.viewerId,
+                  onOpenedResult: (updated) {
+                    // update the list with the returned data
+                    setState(() {
+                      _list[_list.indexWhere((element) => element.userId == updated.userId)] = updated;
+                    });
+                  },
                 );
               },
             ),
@@ -154,7 +162,9 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
 class _CreatorRow extends StatelessWidget {
   final CreatorSuggestion c;
   final VoidCallback onToggle;
-  const _CreatorRow({required this.c, required this.onToggle});
+  final int viewerId;
+  final ValueChanged<CreatorSuggestion> onOpenedResult;
+  const _CreatorRow({required this.c, required this.onToggle, required this.viewerId, required this.onOpenedResult});
 
   String _fmt(int v) {
     if (v >= 1000000) return (v / 1000000).toStringAsFixed(1) + 'M';
@@ -165,7 +175,12 @@ class _CreatorRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600);
     return InkWell(
-      onTap: () {},
+      onTap: () async {
+        final updated = await Navigator.of(context).push<CreatorSuggestion>(
+          MaterialPageRoute(builder: (_) => CreatorProfileView(viewerId: viewerId, initial: c)),
+        );
+        if (updated != null) onOpenedResult(updated);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Row(
