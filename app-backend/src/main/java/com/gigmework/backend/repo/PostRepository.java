@@ -9,5 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PostRepository extends JpaRepository<Post, Long> {
     @EntityGraph(attributePaths = {"author", "media"})
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
-}
 
+    long countByAuthorId(Long authorId);
+}

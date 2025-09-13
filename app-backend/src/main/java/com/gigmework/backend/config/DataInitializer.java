@@ -7,6 +7,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Configuration
 public class DataInitializer {
 
@@ -111,6 +114,48 @@ public class DataInitializer {
                 contactLinks.save(l1);
                 contactLinks.save(l2);
                 contactLinks.save(l3);
+            }
+
+            // Large synthetic freelancer seeding (idempotent-ish): only if total freelancers < 10k
+            long freelancerCount = freelancers.count();
+            final int TARGET = 10_000;
+            if (freelancerCount < TARGET) {
+                int toCreate = (int)(TARGET - freelancerCount);
+                String[] titles = {"Mobile Dev", "Backend Engineer", "UI/UX Designer", "Full‑Stack Dev", "Data Engineer", "Cloud Architect"};
+                String[] skillsSets = {"Flutter,Dart,Firebase", "Spring Boot,PostgreSQL,REST", "Figma,Wireframes,User Research", "React,TypeScript,Node", "SQL,ETL,Pipelines", "AWS,Terraform,CI/CD"};
+                int batchSize = 500;
+                List<UserAccount> userBatch = new ArrayList<>(batchSize);
+                List<FreelancerProfile> profileBatch = new ArrayList<>(batchSize);
+                for (int i = 0; i < toCreate; i++) {
+                    long idx = freelancerCount + i + 1;
+                    String email = "auto" + idx + "@example.dev";
+                    UserAccount ua = new UserAccount(email, "password", UserRole.FREELANCER);
+                    userBatch.add(ua);
+                    int pick = (int)(idx % titles.length);
+                    profileBatch.add(new FreelancerProfile(
+                            ua,
+                            "User " + idx,
+                            titles[pick],
+                            "Enthusiastic professional #" + idx + " delivering quality.",
+                            skillsSets[pick],
+                            null,
+                            "Remote",
+                            email,
+                            null,
+                            null,
+                            null,
+                            null,
+                            5000 + (int)(idx % 4000),
+                            "USD",
+                            true
+                    ));
+                    if ((i + 1) % batchSize == 0 || i == toCreate - 1) {
+                        users.saveAll(userBatch); // ensures user ids
+                        freelancers.saveAll(profileBatch);
+                        userBatch.clear();
+                        profileBatch.clear();
+                    }
+                }
             }
         };
     }
