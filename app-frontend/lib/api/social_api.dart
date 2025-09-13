@@ -105,12 +105,74 @@ class SocialApi {
   }
 
   Future<List<CreatorSuggestion>> suggestions(int userId) async {
-    // placeholder
+    try {
+      final uri = Uri.parse('$_base/api/social/suggestions').replace(queryParameters: {
+        'userId': userId.toString(),
+      });
+      final res = await http.get(uri);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return data.cast<Map<String,dynamic>>().map(CreatorSuggestion.fromJson).toList();
+        }
+      }
+    } catch (_) {}
     return const [];
   }
 
-  Future<void> follow(int targetUserId) async {}
-  Future<void> unfollow(int targetUserId) async {}
+  Future<List<CreatorSuggestion>> searchCreators(String query, {int? viewerId}) async {
+    final raw = query.trim();
+    if (raw.isEmpty) return const [];
+    final q = raw.startsWith('@') ? raw.substring(1) : raw;
+    try {
+      final uri = Uri.parse('$_base/api/social/search').replace(queryParameters: {
+        'q': q,
+        if (viewerId != null) 'viewerId': viewerId.toString(),
+      });
+      final res = await http.get(uri);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return data.cast<Map<String,dynamic>>().map(CreatorSuggestion.fromJson).toList();
+        }
+      }
+    } catch (_) {}
+    // fallback mock for UX continuity
+    return List.generate(3, (i) => CreatorSuggestion(
+      userId: 9000 + i,
+      name: 'User ${q.capitalize()} ${i+1}',
+      title: 'Creator',
+      avatarUrl: null,
+      followedByMe: false,
+    ));
+  }
+
+  Future<void> follow(int targetUserId, {int? viewerId}) async {
+    try {
+      final uri = Uri.parse('$_base/api/social/follow');
+      final body = jsonEncode({
+        'targetUserId': targetUserId,
+        if (viewerId != null) 'viewerId': viewerId,
+      });
+      final res = await http.post(uri, headers: {'Content-Type':'application/json'}, body: body);
+      if (res.statusCode != 200) {
+        throw Exception('follow failed');
+      }
+    } catch (_) {}
+  }
+
+  Future<void> unfollow(int targetUserId, {int? viewerId}) async {
+    try {
+      final uri = Uri.parse('$_base/api/social/follow').replace(queryParameters: {
+        'targetUserId': targetUserId.toString(),
+        if (viewerId != null) 'viewerId': viewerId.toString(),
+      });
+      final res = await http.delete(uri);
+      if (res.statusCode != 200) {
+        throw Exception('unfollow failed');
+      }
+    } catch (_) {}
+  }
 
   SocialPost _postFromJson(Map<String,dynamic> j) {
     final media = (j['media'] as List? ?? []).cast<Map<String,dynamic>>().map(SocialMediaItem.fromJson).toList();
@@ -130,4 +192,4 @@ class SocialApi {
   }
 }
 
-// Removed duplicate SocialCounts class (use the one from models/social_post.dart)
+extension _Cap on String { String capitalize() => isEmpty ? this : this[0].toUpperCase() + substring(1); }

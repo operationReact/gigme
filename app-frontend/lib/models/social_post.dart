@@ -104,4 +104,12 @@ class CreatorSuggestion {
     required this.avatarUrl,
     required this.followedByMe,
   });
+
+  factory CreatorSuggestion.fromJson(Map<String,dynamic> j) => CreatorSuggestion(
+    userId: (j['userId'] ?? j['id']) as int,
+    name: (j['name'] ?? j['displayName'] ?? 'User') as String,
+    title: (j['title'] ?? j['professionalTitle'] ?? '') as String,
+    avatarUrl: j['avatarUrl'] ?? j['imageUrl'],
+    followedByMe: (j['followedByMe'] ?? j['following'] ?? j['isFollowing'] ?? false) as bool,
+  );
 }

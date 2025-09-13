@@ -28,13 +28,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:pdfx/pdfx.dart';
-
-// ✅ Social imports
-import '../sections/social_strip.dart';
-import '../sections/home_feed_preview.dart';
-import '../sections/who_to_follow.dart';
+import 'package:gigmework/sections/user_search_follow.dart';
 import '../api/social_api.dart';
 import '../models/social_post.dart';
+import '../sections/home_feed_preview.dart';
 
 // Brand palette constants
 const _kTeal = Color(0xFF00C2A8);
@@ -308,13 +305,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                 ),
               ),
             ),
-            // ✅ watermark/logo overlay in the Stack
-            /*const Positioned(
-              top: 10,
-              right: 16,
-              child: IgnorePointer(child: _GmwLogo.compact()),
-            ),
-*/
             SafeArea(
               child: LayoutBuilder(
                 builder: (ctx, constraints) {
@@ -371,7 +361,6 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
                               const _StatsAndProgress(),
                             ],
 
-                            // (Quick actions removed)
                             const SizedBox(height: 16),
 
                             _PrimaryNavBar(
@@ -411,10 +400,41 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
             ),
           );
         }
+        // --- MOVED: Place the creator search bar above the feed (instagram style)
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Compact search bar at the top (Instagram-like)
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Keep a small title so users recognise the control when they first see it
+                  Text('Find creators', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: _kHeading)),
+                  const SizedBox(height: 8),
+                  // Use compact=true to reduce vertical space and match the instagram compact search feel
+                  UserSearchFollow(viewerId: uid, compact: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Feed preview (main content)
             HomeFeedPreview(viewerId: uid),
+            const SizedBox(height: 24),
+
+        /*    // Suggestions and who to follow is kept below the feed
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Text('Who to follow', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: _kHeading)),
+                  const SizedBox(height: 12),
+                  WhoToFollow(userId: uid),
+                ],
+              ),
+            ),*/
           ],
         );
 
