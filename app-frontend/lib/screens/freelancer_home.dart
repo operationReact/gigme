@@ -1047,7 +1047,7 @@ class _PrimaryNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Creator feed', 'Portfolio', 'Jobs'];
+    const labels = ['Posts', 'Portfolio', 'Jobs'];
     const icons = [
       Icons.dynamic_feed_outlined,
       Icons.work_outline,

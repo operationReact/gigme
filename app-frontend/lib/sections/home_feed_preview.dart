@@ -47,7 +47,7 @@ class _HomeFeedPreviewState extends State<HomeFeedPreview> {
           ).createShader(r),
           blendMode: BlendMode.srcIn,
           child: Text(
-            'Creator Feed',
+            'Feed',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.5),
           ),
         ),
