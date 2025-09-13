@@ -97,6 +97,7 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
   Widget build(BuildContext context) {
     final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
     final verticalSpacing = widget.compact ? 6.0 : 12.0; // denser in compact mode
+    final maxListHeight = widget.compact ? 260.0 : 360.0; // limit height like Instagram suggestions panel
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,10 +124,21 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (_list.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _list.map((c) => _CreatorChip(c: c, onTap: () => _toggle(c))).toList(),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxListHeight),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              itemCount: _list.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
+              itemBuilder: (ctx, i) {
+                final c = _list[i];
+                return _CreatorRow(
+                  c: c,
+                  onToggle: () => _toggle(c),
+                );
+              },
+            ),
           ),
         ] else if (!_loading && _ctrl.text.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -137,6 +149,99 @@ class _UserSearchFollowState extends State<UserSearchFollow> {
   }
 }
 
+class _CreatorRow extends StatelessWidget {
+  final CreatorSuggestion c;
+  final VoidCallback onToggle;
+  const _CreatorRow({required this.c, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600);
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            _Avatar(url: c.avatarUrl),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.verified, size: 16, color: Colors.blueAccent),
+                    ],
+                  ),
+                  if (c.title.trim().isNotEmpty)
+                    Text(c.title, style: titleStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            _FollowButton(
+              followed: c.followedByMe,
+              onPressed: onToggle,
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String? url;
+  const _Avatar({this.url});
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = CircleAvatar(
+      radius: 20,
+      backgroundColor: Colors.blueGrey.shade100,
+      child: const Icon(Icons.person, color: Colors.white70),
+    );
+    if (url == null || url!.isEmpty) return placeholder;
+    return CircleAvatar(
+      radius: 20,
+      backgroundImage: NetworkImage(url!),
+      backgroundColor: Colors.grey.shade200,
+      onBackgroundImageError: (_, __) {},
+    );
+  }
+}
+
+class _FollowButton extends StatelessWidget {
+  final bool followed;
+  final VoidCallback onPressed;
+  const _FollowButton({required this.followed, required this.onPressed});
+  @override
+  Widget build(BuildContext context) {
+    if (followed) {
+      return OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(88, 36), padding: const EdgeInsets.symmetric(horizontal: 16)),
+        onPressed: onPressed,
+        child: const Text('Following'),
+      );
+    }
+    return FilledButton(
+      style: FilledButton.styleFrom(minimumSize: const Size(72, 36), padding: const EdgeInsets.symmetric(horizontal: 16)),
+      onPressed: onPressed,
+      child: const Text('Follow'),
+    );
+  }
+}
+
+// (Legacy chip widget kept in case other screens reference it)
 class _CreatorChip extends StatelessWidget {
   final CreatorSuggestion c;
   final VoidCallback onTap;
