@@ -250,7 +250,7 @@ class _FreelancerHomePageState extends State<FreelancerHomePage> {
           // Share icon for small screens
           if (isMobile)
             IconButton(
-              tooltip: 'Copy GigMe Share card',
+              tooltip: 'GigMe Vcard',
               icon: const Icon(Icons.ios_share_outlined),
               onPressed: () => _copyShareCard(context),
             ),
@@ -692,7 +692,7 @@ class _HeaderHero extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => _copyShareCard(context),
                 icon: const Icon(Icons.ios_share_outlined),
-                label: const Text('Copy GigMe Share card'),
+                label: const Text('GigMe Vcard'),
                 style: FilledButton.styleFrom(
                   shape: const StadiumBorder(),
                   backgroundColor: _kIndigo, // Use theme color

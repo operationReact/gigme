@@ -174,6 +174,69 @@ class SocialApi {
     } catch (_) {}
   }
 
+  Future<List<SocialPost>> listUserPosts({
+    required int authorId,
+    required int viewerId,
+    int page = 1,
+    int pageSize = 24,
+  }) async {
+    try {
+      final uri = Uri.parse('$_base/api/feed/posts').replace(queryParameters: {
+        'page': (page - 1).toString(),
+        'size': pageSize.toString(),
+        'viewerId': viewerId.toString(),
+        'authorId': authorId.toString(),
+      });
+      final res = await http.get(uri);
+      if (res.statusCode != 200) throw Exception('bad status ${res.statusCode}');
+      final data = jsonDecode(res.body) as Map<String,dynamic>;
+      final content = (data['content'] as List? ?? data['posts'] as List? ?? []).cast<Map<String,dynamic>>();
+      return content.map(_postFromJson).toList();
+    } catch (_) {
+      // Fallback mock: single image & video post for the author
+      final now = DateTime.now();
+      return [
+        SocialPost(
+          id: -101,
+          authorId: authorId,
+          authorName: 'You',
+          authorAvatarUrl: null,
+          content: 'Welcome – create your first post!',
+          createdAt: now.subtract(const Duration(minutes: 3)),
+          likeCount: 0,
+          commentCount: 0,
+          likedByMe: false,
+          mediaUrls: const ['https://picsum.photos/seed/userpostA/800/600'],
+          mediaItems: const [
+            SocialMediaItem(url: 'https://picsum.photos/seed/userpostA/800/600', mediaType: 'IMAGE', width: 800, height: 600),
+          ],
+        ),
+        SocialPost(
+          id: -102,
+          authorId: authorId,
+          authorName: 'You',
+          authorAvatarUrl: null,
+          content: 'Sample video – upload to replace.',
+          createdAt: now.subtract(const Duration(minutes: 7)),
+          likeCount: 0,
+          commentCount: 0,
+          likedByMe: false,
+          mediaUrls: const ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'],
+          mediaItems: const [
+            SocialMediaItem(
+              url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+              mediaType: 'VIDEO',
+              width: 1280,
+              height: 720,
+              durationSeconds: 10,
+              thumbnailUrl: 'https://picsum.photos/seed/userpostVid/800/450',
+            ),
+          ],
+        ),
+      ];
+    }
+  }
+
   SocialPost _postFromJson(Map<String,dynamic> j) {
     final media = (j['media'] as List? ?? []).cast<Map<String,dynamic>>().map(SocialMediaItem.fromJson).toList();
     return SocialPost(
